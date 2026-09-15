@@ -262,9 +262,11 @@ la siguiente conexión.
 1. Activa la verificación en dos pasos en la cuenta de Gmail que vaya a enviar los correos.
 2. Genera una [contraseña de aplicación](https://myaccount.google.com/apppasswords) (16
    caracteres, distinta de tu contraseña normal).
-3. En Render, define `MAIL_USERNAME` con esa cuenta de Gmail y `MAIL_PASSWORD` con la contraseña
-   de aplicación (**nunca la contraseña normal de la cuenta**). `MAIL_ENABLED=true` ya viene en el
-   Blueprint.
+3. En Render (*Environment* del servicio), define `MAIL_USERNAME` con esa cuenta de Gmail y
+   `MAIL_PASSWORD` con la contraseña de aplicación (**nunca la contraseña normal de la cuenta**),
+   y cambia `MAIL_ENABLED` a `true` — por defecto viene en `false` (registro y recuperación
+   funcionan igual, pero sin mandar el correo de verdad) para no dejar el registro roto en
+   producción hasta que las credenciales estén puestas.
 4. En local, deja `MAIL_ENABLED` sin definir (por defecto `false`): los enlaces de verificación y
    de recuperación se escriben en el log del servidor en vez de enviarse, para poder probar el
    flujo entero sin credenciales reales.
