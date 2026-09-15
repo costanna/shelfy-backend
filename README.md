@@ -209,7 +209,8 @@ com.shelfy
 Este repo incluye [`render.yaml`](./render.yaml). En el dashboard: **New → Blueprint** → conecta
 `shelfy-backend`. Crea la base de datos y el Web Service ya enlazados (host, usuario y contraseña
 se inyectan solos vía `DB_HOST`/`DB_USER`/`DB_PASSWORD`) y genera `JWT_SECRET` automáticamente.
-Solo falta revisar `CORS_ALLOWED_ORIGINS` con la URL real del Static Site del frontend.
+`CORS_ALLOWED_ORIGINS` ya viene apuntando al frontend en Vercel; si esa URL cambia, actualízala
+en [`render.yaml`](./render.yaml) o directamente en *Environment* del servicio.
 
 ### Opción manual
 

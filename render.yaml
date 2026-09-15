@@ -5,8 +5,8 @@
 # ya enlazados entre sí (evita copiar host/usuario/contraseña a mano).
 #
 # JWT_SECRET se genera solo (sync: false + generateValue) la primera vez.
-# CORS_ALLOWED_ORIGINS hay que ajustarlo a la URL real del Static Site del
-# frontend una vez esté desplegado (ver shelfy-frontend/render.yaml).
+# CORS_ALLOWED_ORIGINS apunta al frontend desplegado en Vercel. Si cambia la
+# URL (otro dominio, preview deploys, etc.), actualízala aquí.
 databases:
   - name: shelfy-db
     plan: free
@@ -45,6 +45,6 @@ services:
       - key: JWT_EXPIRATION_MS
         value: "86400000"
       - key: CORS_ALLOWED_ORIGINS
-        value: https://shelfy-frontend.onrender.com
+        value: https://shelfy-frontend-six.vercel.app
       - key: DDL_AUTO
         value: update
