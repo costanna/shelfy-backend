@@ -31,6 +31,7 @@ los datos de otro.
 - **Aislamiento por usuario a nivel de datos**, no solo de UI: pedir un libro, categoría o reseña ajena devuelve `404`, no `403`, para no revelar siquiera que existe. Se aplica de forma consistente en el `Service`, no confiando en el filtrado del cliente.
 - **Filtros y paginación reales** en `GET /api/books` (estado, categoría, texto libre, orden), con `Specification` de Spring Data JPA en vez de *queries* ad hoc por cada combinación de filtros.
 - **Manejo de errores centralizado**: un único `@ControllerAdvice` traduce validaciones, duplicados y recursos no encontrados a un formato de error consistente en toda la API.
+- **Validación de negocio propia con Bean Validation**: `@HalfStep`, una anotación de validación a medida (con su `ConstraintValidator`), rechaza puntuaciones como `3.3` en las reseñas — solo se aceptan medias estrellas (`0.5`, `1.0`, `1.5`... `5.0`), igual que `@Min`/`@Max` para cualquier otra regla del dominio.
 - **Listo para producción sin cambiar código**: toda la configuración (BD, JWT, CORS) sale de variables de entorno, con valores por defecto sensatos para desarrollo local.
 
 ## 🛠️ Cómo está hecho
