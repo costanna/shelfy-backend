@@ -1,0 +1,50 @@
+# Blueprint de Render para shelfy-backend.
+#
+# Uso: Render dashboard → New → Blueprint → conecta este repositorio.
+# Crea de una vez la base de datos PostgreSQL y el Web Service del backend,
+# ya enlazados entre sí (evita copiar host/usuario/contraseña a mano).
+#
+# JWT_SECRET se genera solo (sync: false + generateValue) la primera vez.
+# CORS_ALLOWED_ORIGINS hay que ajustarlo a la URL real del Static Site del
+# frontend una vez esté desplegado (ver shelfy-frontend/render.yaml).
+databases:
+  - name: shelfy-db
+    plan: free
+    postgresMajorVersion: "16"
+
+services:
+  - type: web
+    name: shelfy-backend
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /actuator/health
+    envVars:
+      - key: DB_HOST
+        fromDatabase:
+          name: shelfy-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: shelfy-db
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: shelfy-db
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: shelfy-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: shelfy-db
+          property: password
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRATION_MS
+        value: "86400000"
+      - key: CORS_ALLOWED_ORIGINS
+        value: https://shelfy-frontend.onrender.com
+      - key: DDL_AUTO
+        value: update
