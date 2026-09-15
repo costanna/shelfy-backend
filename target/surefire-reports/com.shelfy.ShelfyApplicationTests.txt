@@ -1,4 +1,0 @@
--------------------------------------------------------------------------------
-Test set: com.shelfy.ShelfyApplicationTests
--------------------------------------------------------------------------------
-Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 5.459 s -- in com.shelfy.ShelfyApplicationTests

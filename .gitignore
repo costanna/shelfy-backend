@@ -25,3 +25,15 @@ replay_pid*
 
 # Sesiones de la extensión App Modernization
 .github/modernize/
+
+# Maven
+target/
+!.mvn/wrapper/maven-wrapper.jar
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.settings/
+.classpath
+.project
