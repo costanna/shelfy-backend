@@ -64,4 +64,7 @@ public class User {
 
     @Column(name = "password_reset_token_expires_at")
     private Instant passwordResetTokenExpiresAt;
+
+    @Column(unique = true, length = 24)
+    private String alias;
 }
