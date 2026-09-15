@@ -34,3 +34,5 @@ services:
         sync: false
       - key: MAIL_PASSWORD
         sync: false
+      - key: REQUIRE_EMAIL_VERIFICATION
+        value: "false"

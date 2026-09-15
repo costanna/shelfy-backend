@@ -16,6 +16,7 @@ import com.shelfy.user.User;
 import com.shelfy.user.UserMapper;
 import com.shelfy.user.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -46,27 +47,41 @@ public class AuthService {
     private final AuthenticationManager authenticationManager;
     private final EmailService emailService;
 
+    /**
+     * Interruptor de emergencia: si el proveedor de correo no está
+     * funcionando, se puede poner a false (REQUIRE_EMAIL_VERIFICATION=false)
+     * para que las cuentas nazcan ya verificadas y el login no dependa del
+     * email. La recuperación de contraseña no se ve afectada por esto — ya
+     * es opcional de por sí, y su envío nunca rompe la petición gracias a
+     * EmailService.
+     */
+    @Value("${shelfy.registration.require-email-verification}")
+    private boolean requireEmailVerification;
+
     @Transactional
     public MessageResponse register(RegisterRequest request) {
         if (userRepository.existsByEmailIgnoreCase(request.email())) {
             throw new DuplicateResourceException("Ya existe una cuenta con ese email");
         }
 
-        String token = UUID.randomUUID().toString();
-
-        User user = User.builder()
+        User.UserBuilder builder = User.builder()
                 .email(request.email().toLowerCase())
                 .password(passwordEncoder.encode(request.password()))
                 .name(request.name())
-                .emailVerified(false)
-                .verificationToken(token)
-                .verificationTokenExpiresAt(Instant.now().plus(VERIFICATION_TOKEN_TTL))
-                .build();
+                .emailVerified(!requireEmailVerification);
 
-        userRepository.save(user);
-        emailService.sendVerificationEmail(user.getEmail(), user.getName(), token);
+        if (requireEmailVerification) {
+            String token = UUID.randomUUID().toString();
+            builder.verificationToken(token)
+                    .verificationTokenExpiresAt(Instant.now().plus(VERIFICATION_TOKEN_TTL));
 
-        return new MessageResponse("Te hemos enviado un email para verificar tu cuenta.");
+            User user = userRepository.save(builder.build());
+            emailService.sendVerificationEmail(user.getEmail(), user.getName(), token);
+            return new MessageResponse("Te hemos enviado un email para verificar tu cuenta.");
+        }
+
+        userRepository.save(builder.build());
+        return new MessageResponse("Cuenta creada. Ya puedes iniciar sesión.");
     }
 
     @Transactional(readOnly = true)
@@ -77,7 +92,7 @@ public class AuthService {
         UserPrincipal principal = (UserPrincipal) authentication.getPrincipal();
         User user = userRepository.getReferenceById(principal.getId());
 
-        if (!user.isEmailVerified()) {
+        if (requireEmailVerification && !user.isEmailVerified()) {
             throw new EmailNotVerifiedException();
         }
 

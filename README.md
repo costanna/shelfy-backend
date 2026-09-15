@@ -105,6 +105,7 @@ mvn spring-boot:run
 | `MAIL_USERNAME` | — | Cuenta de Gmail que envía los correos |
 | `MAIL_PASSWORD` | — | [Contraseña de aplicación](https://myaccount.google.com/apppasswords) de esa cuenta (no la contraseña normal; requiere verificación en dos pasos activada) |
 | `MAIL_FROM` | el valor de `MAIL_USERNAME` | Remitente de los emails |
+| `REQUIRE_EMAIL_VERIFICATION` | `true` | Interruptor de emergencia: en `false`, las cuentas nacen ya verificadas y el login no depende del email (`forgot-password` sigue funcionando igual, no depende de esta variable) |
 | `DDL_AUTO` | `update` | Estrategia de esquema de Hibernate |
 | `PORT` | `8080` | Puerto HTTP (Render lo inyecta automáticamente) |
 
