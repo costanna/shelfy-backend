@@ -22,9 +22,12 @@ datos: `demo@shelfy.app` / `shelfy123`).
 ## 📖 Qué expone
 
 Registro con verificación por email, login, recuperación de contraseña, CRUD de libros con
-filtros y paginación, categorías propias por usuario, reseñas anidadas en cada libro y
-estadísticas de lectura (libros terminados por mes, días que ha costado cada uno) — todo con la
-garantía de que un usuario nunca puede ver ni tocar los datos de otro.
+filtros y paginación, categorías propias por usuario, reseñas anidadas en cada libro,
+estadísticas de lectura (libros terminados por mes, días que ha costado cada uno) y una capa
+social opcional: buscar a otros usuarios por alias y seguirlos para ver su estantería y sus
+reseñas — con la garantía de que nadie puede *modificar* los datos de otro usuario bajo ningún
+concepto, y de que la estantería y las reseñas de alguien solo se pueden *ver* si esa persona te
+tiene entre sus seguidores.
 
 ## ✨ Puntos a destacar
 
@@ -34,6 +37,7 @@ garantía de que un usuario nunca puede ver ni tocar los datos de otro.
 - **Manejo de errores centralizado**: un único `@ControllerAdvice` traduce validaciones, duplicados y recursos no encontrados a un formato de error consistente en toda la API.
 - **Validación de negocio propia con Bean Validation**: `@HalfStep` (reseñas, solo admite medias estrellas), `@ValidDateRange` (libros, `finishedAt` no puede ser anterior a `startedAt`) y `@NoProfanity` (alias de usuario) son anotaciones a medida con su propio `ConstraintValidator`, igual que `@Min`/`@Max` para cualquier otra regla del dominio — `@ValidDateRange` incluso redirige el error a un campo concreto (`finishedAt`) desde una validación a nivel de clase.
 - **Alias de usuario único sin bloquearse a sí mismo**: la comprobación de unicidad vive en el `Service`, no en la anotación de validación — así un usuario puede volver a guardar el alias que ya tenía sin que se rechace como "ya en uso" por chocar contra su propia fila.
+- **Visibilidad social sin duplicar datos**: no existe una "versión pública" separada de `Book`/`Review` en base de datos — `UserProfileService` reutiliza las mismas entidades y solo decide, en el momento de la petición, si rellenar `books` en la respuesta o devolverlo vacío según `own`/`followedByMe`. Además, sin alias un usuario simplemente no aparece en `/api/users/search`: no ser buscable es el valor por defecto, hay que ponerse alias para ser encontrable.
 - **Listo para producción sin cambiar código**: toda la configuración (BD, JWT, CORS) sale de variables de entorno, con valores por defecto sensatos para desarrollo local.
 - **Estadísticas calculadas al vuelo**: `/api/stats` agrupa los libros del usuario en memoria con la Stream API (por mes de `finishedAt`, por estado, etc.) en vez de mantener contadores desnormalizados — sencillo y suficientemente rápido para el tamaño real de una biblioteca personal.
 - **Verificación de email sin bloquear el arranque si el correo falla**: `management.health.mail.enabled=false` — por defecto, Spring Boot Actuator añade un chequeo de salud que abre una conexión SMTP real en cada `/actuator/health` en cuanto detecta `spring-boot-starter-mail` en el classpath; sin desactivarlo, un problema puntual de Gmail (o no tener credenciales en local) tumbaba el health check de *todo* el servicio, no solo el envío de correos.
@@ -49,11 +53,14 @@ garantía de que un usuario nunca puede ver ni tocar los datos de otro.
 
 ```text
 com.shelfy
-├── auth/          registro y login (controller, service, dto)
-├── user/          perfil y preferencias de tema/idioma
+├── auth/          registro, login, verificación de email, recuperar contraseña
+├── user/          perfil, alias, preferencias, búsqueda de usuarios, perfil público
+├── follow/        seguir/dejar de seguir, contadores
 ├── book/          entidad, filtros, CRUD
 ├── category/      categorías propias del usuario
 ├── review/        reseñas anidadas en libros
+├── stats/         estadísticas de lectura
+├── mail/          envío de emails (verificación, recuperación)
 ├── security/      JwtService, filtro JWT, UserPrincipal
 ├── config/        seguridad, CORS y datos de ejemplo
 └── common/        errores de API y respuesta paginada
@@ -197,6 +204,24 @@ en título/autor), `page`/`size` (paginación, 12 por defecto), `sort` (por defe
 `booksByMonth`: cuántos libros se terminaron cada mes — `{ year, month, count }`, orden de más
 reciente a más antiguo. Solo cuenta libros `READ` con `finishedAt`; uno sin esa fecha no se puede
 atribuir a ningún mes.
+
+**Seguir a otros usuarios**
+
+| Método | Ruta | Cuerpo | Respuesta |
+|---|---|---|---|
+| `GET` | `/api/users/search?q=` | — | Hasta 20 usuarios cuyo alias contiene `q` (sin distinguir mayúsculas), sin incluirte a ti mismo |
+| `GET` | `/api/users/{id}/profile` | — | Perfil público de ese usuario |
+| `POST` | `/api/users/{id}/follow` | — | `204`. `409` si ya le sigues, `400` si es tu propio id |
+| `DELETE` | `/api/users/{id}/follow` | — | `204` (idempotente: no falla si no le seguías) |
+
+`GET /api/users/search` solo encuentra usuarios que tienen alias puesto — sin alias, no eres
+localizable. La respuesta de cada resultado: `{ id, alias, name, followersCount, followedByMe }`.
+
+El perfil (`GET /api/users/{id}/profile`) siempre devuelve `{ id, alias, name, followersCount,
+followingCount, followedByMe, own, visible, books }` — pero `books` solo viene relleno
+(con sus reseñas y categorías anidadas) si `visible` es `true`: o es tu propio perfil (`own`), o
+sigues a esa persona (`followedByMe`). Si no, `books` llega vacío aunque el usuario tenga libros de
+verdad — la estantería y las reseñas de alguien son privadas hasta que le sigues.
 
 **Categorías**
 

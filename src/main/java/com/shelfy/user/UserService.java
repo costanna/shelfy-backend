@@ -2,6 +2,8 @@ package com.shelfy.user;
 
 import com.shelfy.common.exception.DuplicateResourceException;
 import com.shelfy.common.exception.ResourceNotFoundException;
+import com.shelfy.follow.FollowService;
+import com.shelfy.follow.dto.UserSummaryResponse;
 import com.shelfy.user.dto.UpdateAliasRequest;
 import com.shelfy.user.dto.UpdatePreferencesRequest;
 import com.shelfy.user.dto.UserResponse;
@@ -9,12 +11,15 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 public class UserService {
 
     private final UserRepository userRepository;
     private final UserMapper userMapper;
+    private final FollowService followService;
 
     @Transactional(readOnly = true)
     public UserResponse getById(Long id) {
@@ -47,6 +52,23 @@ public class UserService {
 
         user.setAlias(request.alias());
         return userMapper.toResponse(user);
+    }
+
+    @Transactional(readOnly = true)
+    public List<UserSummaryResponse> search(Long viewerId, String query) {
+        if (query == null || query.isBlank()) {
+            return List.of();
+        }
+
+        return userRepository.findTop20ByAliasContainingIgnoreCaseAndIdNot(query, viewerId).stream()
+                .map(user -> new UserSummaryResponse(
+                        user.getId(),
+                        user.getAlias(),
+                        user.getName(),
+                        followService.followersCount(user.getId()),
+                        followService.isFollowing(viewerId, user.getId())
+                ))
+                .toList();
     }
 
     @Transactional(readOnly = true)
