@@ -32,7 +32,8 @@ garantía de que un usuario nunca puede ver ni tocar los datos de otro.
 - **Aislamiento por usuario a nivel de datos**, no solo de UI: pedir un libro, categoría o reseña ajena devuelve `404`, no `403`, para no revelar siquiera que existe. Se aplica de forma consistente en el `Service`, no confiando en el filtrado del cliente.
 - **Filtros y paginación reales** en `GET /api/books` (estado, categoría, texto libre, orden), con `Specification` de Spring Data JPA en vez de *queries* ad hoc por cada combinación de filtros.
 - **Manejo de errores centralizado**: un único `@ControllerAdvice` traduce validaciones, duplicados y recursos no encontrados a un formato de error consistente en toda la API.
-- **Validación de negocio propia con Bean Validation**: `@HalfStep` (reseñas, solo admite medias estrellas) y `@ValidDateRange` (libros, `finishedAt` no puede ser anterior a `startedAt`) son anotaciones a medida con su propio `ConstraintValidator`, igual que `@Min`/`@Max` para cualquier otra regla del dominio — esta última incluso redirige el error a un campo concreto (`finishedAt`) desde una validación a nivel de clase.
+- **Validación de negocio propia con Bean Validation**: `@HalfStep` (reseñas, solo admite medias estrellas), `@ValidDateRange` (libros, `finishedAt` no puede ser anterior a `startedAt`) y `@NoProfanity` (alias de usuario) son anotaciones a medida con su propio `ConstraintValidator`, igual que `@Min`/`@Max` para cualquier otra regla del dominio — `@ValidDateRange` incluso redirige el error a un campo concreto (`finishedAt`) desde una validación a nivel de clase.
+- **Alias de usuario único sin bloquearse a sí mismo**: la comprobación de unicidad vive en el `Service`, no en la anotación de validación — así un usuario puede volver a guardar el alias que ya tenía sin que se rechace como "ya en uso" por chocar contra su propia fila.
 - **Listo para producción sin cambiar código**: toda la configuración (BD, JWT, CORS) sale de variables de entorno, con valores por defecto sensatos para desarrollo local.
 - **Estadísticas calculadas al vuelo**: `/api/stats` agrupa los libros del usuario en memoria con la Stream API (por mes de `finishedAt`, por estado, etc.) en vez de mantener contadores desnormalizados — sencillo y suficientemente rápido para el tamaño real de una biblioteca personal.
 - **Verificación de email sin bloquear el arranque si el correo falla**: `management.health.mail.enabled=false` — por defecto, Spring Boot Actuator añade un chequeo de salud que abre una conexión SMTP real en cada `/actuator/health` en cuanto detecta `spring-boot-starter-mail` en el classpath; sin desactivarlo, un problema puntual de Gmail (o no tener credenciales en local) tumbaba el health check de *todo* el servicio, no solo el envío de correos.
@@ -138,11 +139,15 @@ solo sirve una vez.
 
 | Método | Ruta | Cuerpo | Respuesta |
 |---|---|---|---|
-| `GET` | `/api/users/me` | — | `{ id, email, name, themePreference, languagePreference }` |
+| `GET` | `/api/users/me` | — | `{ id, email, name, alias, themePreference, languagePreference }` |
 | `PATCH` | `/api/users/me/preferences` | `{ themePreference?, languagePreference? }` | Usuario actualizado |
+| `PATCH` | `/api/users/me/alias` | `{ alias }` | Usuario actualizado, o `409` si el alias ya lo tiene otra cuenta |
 
 - `themePreference`: `LIGHT` · `DARK` · `SYSTEM`
 - `languagePreference`: `en` · `ca` · `es`
+- `alias`: 3-24 caracteres, solo letras/números/`_`, único entre cuentas (sin distinguir
+  mayúsculas) y sin palabras malsonantes (ES/CA/EN). Opcional — `null` hasta que el usuario elige
+  uno.
 
 **Libros**
 

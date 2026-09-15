@@ -1,6 +1,7 @@
 package com.shelfy.user;
 
 import com.shelfy.security.UserPrincipal;
+import com.shelfy.user.dto.UpdateAliasRequest;
 import com.shelfy.user.dto.UpdatePreferencesRequest;
 import com.shelfy.user.dto.UserResponse;
 import jakarta.validation.Valid;
@@ -24,5 +25,11 @@ public class UserController {
     public UserResponse updatePreferences(@AuthenticationPrincipal UserPrincipal principal,
                                           @Valid @RequestBody UpdatePreferencesRequest request) {
         return userService.updatePreferences(principal.getId(), request);
+    }
+
+    @PatchMapping("/me/alias")
+    public UserResponse updateAlias(@AuthenticationPrincipal UserPrincipal principal,
+                                    @Valid @RequestBody UpdateAliasRequest request) {
+        return userService.updateAlias(principal.getId(), request);
     }
 }

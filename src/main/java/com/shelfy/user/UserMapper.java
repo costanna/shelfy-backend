@@ -11,6 +11,7 @@ public class UserMapper {
                 user.getId(),
                 user.getEmail(),
                 user.getName(),
+                user.getAlias(),
                 user.getThemePreference(),
                 user.getLanguagePreference()
         );
