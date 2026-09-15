@@ -41,6 +41,7 @@ mvn spring-boot:run
 | `DB_NAME` | `shelfy` | Nombre de la base de datos |
 | `DB_USER` | `shelfy` | Usuario de base de datos |
 | `DB_PASSWORD` | `shelfy` | Contraseña de base de datos |
+| `DB_SSLMODE` | `disable` | Modo TLS de la conexión (`require` en Neon y proveedores similares) |
 | `JWT_SECRET` | *(valor de desarrollo)* | Secreto de firma. **Obligatorio en producción**, mínimo 32 caracteres |
 | `JWT_EXPIRATION_MS` | `86400000` (24 h) | Caducidad del token |
 | `CORS_ALLOWED_ORIGINS` | `http://localhost:4200` | Orígenes permitidos, separados por comas |
@@ -202,26 +203,39 @@ com.shelfy
 
 ---
 
-## Desplegar en Render
+## Desplegar en Render (backend) + Neon (base de datos)
 
-### Opción rápida — Blueprint
+El plan Free de Render solo permite **una** base de datos PostgreSQL gestionada por cuenta, así
+que si ya tienes una en uso, la base de datos de Shelfy vive en
+[Neon](https://neon.tech) (gratis, sin ese límite) y el backend en Render como Web Service.
+
+### 1. Crear la base de datos en Neon
+
+1. Crea una cuenta en [neon.tech](https://neon.tech) (vale con GitHub) y un proyecto nuevo.
+2. Neon te da una *connection string* del tipo:
+   `postgresql://usuario:clave@ep-xxxx.región.aws.neon.tech/neondb?sslmode=require`
+3. De ahí sacas: `DB_HOST` (el `ep-xxxx...neon.tech`), `DB_NAME` (`neondb` o el nombre que le
+   hayas puesto), `DB_USER` y `DB_PASSWORD`.
+
+### 2. Desplegar el backend — Blueprint
 
 Este repo incluye [`render.yaml`](./render.yaml). En el dashboard: **New → Blueprint** → conecta
-`shelfy-backend`. Crea la base de datos y el Web Service ya enlazados (host, usuario y contraseña
-se inyectan solos vía `DB_HOST`/`DB_USER`/`DB_PASSWORD`) y genera `JWT_SECRET` automáticamente.
-`CORS_ALLOWED_ORIGINS` ya viene apuntando al frontend en Vercel; si esa URL cambia, actualízala
-en [`render.yaml`](./render.yaml) o directamente en *Environment* del servicio.
+`shelfy-backend`. Al aplicar el Blueprint te pedirá `DB_HOST`, `DB_NAME`, `DB_USER` y
+`DB_PASSWORD` (quedan como "sync: false", sin valor por defecto): rellénalos con los datos de
+Neon del paso anterior. `DB_PORT`, `DB_SSLMODE=require` y `JWT_SECRET` ya vienen resueltos.
+`CORS_ALLOWED_ORIGINS` apunta al frontend en Vercel; si esa URL cambia, actualízala en
+[`render.yaml`](./render.yaml) o directamente en *Environment* del servicio.
 
 ### Opción manual
 
-1. **New → PostgreSQL** (plan Free) y copia la *Internal Database URL*.
-2. **New → Web Service** → conecta este repositorio → runtime **Docker** (usa el `Dockerfile` incluido).
-3. En *Environment*, define: `DB_URL`, `DB_USER`, `DB_PASSWORD`, `JWT_SECRET` y `CORS_ALLOWED_ORIGINS` con la URL del frontend.
-4. Health check path: `/actuator/health`.
+1. **New → Web Service** → conecta este repositorio → runtime **Docker** (usa el `Dockerfile` incluido).
+2. En *Environment*, define `DB_HOST`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` (datos de Neon),
+   `DB_SSLMODE=require`, `JWT_SECRET` y `CORS_ALLOWED_ORIGINS` con la URL del frontend.
+3. Health check path: `/actuator/health`.
 
-> La `Internal Database URL` de Render viene en formato `postgres://usuario:clave@host/base`.
-> `DB_URL` necesita formato JDBC: `jdbc:postgresql://host/base`, con usuario y clave en sus propias variables.
-> Si prefieres no montar esa URL a mano, deja `DB_URL` sin definir y usa `DB_HOST`/`DB_PORT`/`DB_NAME` sueltos
-> (es justo lo que hace el Blueprint de arriba).
+> Si prefieres no montar la URL a mano con `DB_HOST`/`DB_NAME`/etc., puedes definir `DB_URL`
+> entera en su lugar: `jdbc:postgresql://host/base?sslmode=require`, con usuario y clave en sus
+> propias variables. `DB_URL`, si se define, tiene prioridad sobre las variables sueltas.
 
 El plan Free duerme el servicio tras ~15 min sin uso: la primera petición después puede tardar cerca de un minuto.
+Neon, por su parte, "hiberna" la base de datos tras un rato de inactividad y se despierta sola en la siguiente conexión (también puede añadir algo de latencia a la primera petición).
