@@ -21,9 +21,9 @@ datos: `demo@shelfy.app` / `shelfy123`).
 
 ## 📖 Qué expone
 
-Registro/login, CRUD de libros con filtros y paginación, categorías propias por usuario, y
-reseñas anidadas en cada libro — todo con la garantía de que un usuario nunca puede ver ni tocar
-los datos de otro.
+Registro/login, CRUD de libros con filtros y paginación, categorías propias por usuario, reseñas
+anidadas en cada libro y estadísticas de lectura (libros terminados por mes, días que ha costado
+cada uno) — todo con la garantía de que un usuario nunca puede ver ni tocar los datos de otro.
 
 ## ✨ Puntos a destacar
 
@@ -33,6 +33,7 @@ los datos de otro.
 - **Manejo de errores centralizado**: un único `@ControllerAdvice` traduce validaciones, duplicados y recursos no encontrados a un formato de error consistente en toda la API.
 - **Validación de negocio propia con Bean Validation**: `@HalfStep` (reseñas, solo admite medias estrellas) y `@ValidDateRange` (libros, `finishedAt` no puede ser anterior a `startedAt`) son anotaciones a medida con su propio `ConstraintValidator`, igual que `@Min`/`@Max` para cualquier otra regla del dominio — esta última incluso redirige el error a un campo concreto (`finishedAt`) desde una validación a nivel de clase.
 - **Listo para producción sin cambiar código**: toda la configuración (BD, JWT, CORS) sale de variables de entorno, con valores por defecto sensatos para desarrollo local.
+- **Estadísticas calculadas al vuelo**: `/api/stats` agrupa los libros del usuario en memoria con la Stream API (por mes de `finishedAt`, por estado, etc.) en vez de mantener contadores desnormalizados — sencillo y suficientemente rápido para el tamaño real de una biblioteca personal.
 
 ## 🛠️ Cómo está hecho
 
