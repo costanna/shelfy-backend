@@ -176,7 +176,7 @@ Nombres duplicados dentro del mismo usuario devuelven `409`.
 | `PUT` | `/api/books/{bookId}/reviews/{id}` | `{ rating, text }` | Reseña actualizada |
 | `DELETE` | `/api/books/{bookId}/reviews/{id}` | — | `204` |
 
-`rating`: entero de 1 a 5.
+`rating`: número de 0.5 a 5, en pasos de 0.5 (p. ej. `3.5`).
 
 ### Formato de errores
 
