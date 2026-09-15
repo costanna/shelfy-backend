@@ -1,0 +1,22 @@
+# PostgreSQL local para desarrollo:  docker compose up -d
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: shelfy-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: shelfy
+      POSTGRES_USER: shelfy
+      POSTGRES_PASSWORD: shelfy
+    ports:
+      - "5432:5432"
+    volumes:
+      - shelfy-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U shelfy -d shelfy"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  shelfy-pgdata:

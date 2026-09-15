@@ -1,0 +1,35 @@
+package com.shelfy.book.dto;
+
+import com.shelfy.book.BookStatus;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+
+import java.util.Set;
+
+public record BookRequest(
+        @NotBlank(message = "El título es obligatorio")
+        @Size(max = 255, message = "El título no puede superar los 255 caracteres")
+        String title,
+
+        @Size(max = 255, message = "El autor no puede superar los 255 caracteres")
+        String author,
+
+        @Size(max = 1000, message = "La URL de portada es demasiado larga")
+        String coverUrl,
+
+        @Size(max = 20, message = "El ISBN no puede superar los 20 caracteres")
+        String isbn,
+
+        String synopsis,
+
+        @Min(value = 1, message = "El número de páginas debe ser mayor que 0")
+        Integer pageCount,
+
+        @NotNull(message = "El estado es obligatorio")
+        BookStatus status,
+
+        Set<Long> categoryIds
+) {
+}
