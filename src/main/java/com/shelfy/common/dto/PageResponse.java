@@ -5,7 +5,6 @@ import org.springframework.data.domain.Page;
 import java.util.List;
 import java.util.function.Function;
 
-/** Respuesta paginada plana, para no exponer la estructura interna de Page a la API. */
 public record PageResponse<T>(
         List<T> content,
         int page,
