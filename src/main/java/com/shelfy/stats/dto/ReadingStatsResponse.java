@@ -5,6 +5,7 @@ import java.util.List;
 public record ReadingStatsResponse(
         long totalBooksRead,
         long totalBooks,
-        List<BookReadingDuration> readingDurations
+        List<BookReadingDuration> readingDurations,
+        List<MonthlyReadCount> booksByMonth
 ) {
 }

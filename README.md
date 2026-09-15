@@ -165,11 +165,15 @@ en título/autor), `page`/`size` (paginación, 12 por defecto), `sort` (por defe
 
 | Método | Ruta | Cuerpo | Respuesta |
 |---|---|---|---|
-| `GET` | `/api/stats` | — | `{ totalBooksRead, totalBooks, readingDurations }` |
+| `GET` | `/api/stats` | — | `{ totalBooksRead, totalBooks, readingDurations, booksByMonth }` |
 
 `readingDurations`: un elemento por libro con `startedAt` y `finishedAt` rellenos —
 `{ bookId, title, startedAt, finishedAt, daysReading }`, orden de más reciente a más antiguo.
 `daysReading` cuenta el día de inicio y el de fin (empezar y acabar el mismo día cuenta como 1).
+
+`booksByMonth`: cuántos libros se terminaron cada mes — `{ year, month, count }`, orden de más
+reciente a más antiguo. Solo cuenta libros `READ` con `finishedAt`; uno sin esa fecha no se puede
+atribuir a ningún mes.
 
 **Categorías**
 
