@@ -6,6 +6,9 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.ColumnDefault;
+
+import java.time.Instant;
 
 @Entity
 @Table(name = "users", uniqueConstraints = @UniqueConstraint(columnNames = "email"))
@@ -38,4 +41,27 @@ public class User {
     @Column(name = "language_preference", nullable = false, length = 2)
     @Builder.Default
     private LanguagePreference languagePreference = LanguagePreference.ES;
+
+    /**
+     * Sin {@code @Builder.Default}: una cuenta nueva creada por código
+     * (registro) queda sin verificar por defecto (false). El
+     * {@code @ColumnDefault("true")} solo afecta a la migración de las
+     * columnas de cuentas ya existentes al añadir esta columna, no a los
+     * INSERT que haga Hibernate a partir de ahora.
+     */
+    @Column(name = "email_verified", nullable = false)
+    @ColumnDefault("true")
+    private boolean emailVerified;
+
+    @Column(name = "verification_token", unique = true)
+    private String verificationToken;
+
+    @Column(name = "verification_token_expires_at")
+    private Instant verificationTokenExpiresAt;
+
+    @Column(name = "password_reset_token", unique = true)
+    private String passwordResetToken;
+
+    @Column(name = "password_reset_token_expires_at")
+    private Instant passwordResetTokenExpiresAt;
 }

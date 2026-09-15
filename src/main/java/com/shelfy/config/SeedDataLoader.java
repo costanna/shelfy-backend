@@ -39,6 +39,7 @@ public class SeedDataLoader {
                     .email("demo@shelfy.app")
                     .password(passwordEncoder.encode("shelfy123"))
                     .name("Demo")
+                    .emailVerified(true)
                     .build());
 
             Category fantasy = categoryRepository.save(
