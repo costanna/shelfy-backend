@@ -21,9 +21,10 @@ datos: `demo@shelfy.app` / `shelfy123`).
 
 ## 📖 Qué expone
 
-Registro/login, CRUD de libros con filtros y paginación, categorías propias por usuario, reseñas
-anidadas en cada libro y estadísticas de lectura (libros terminados por mes, días que ha costado
-cada uno) — todo con la garantía de que un usuario nunca puede ver ni tocar los datos de otro.
+Registro con verificación por email, login, recuperación de contraseña, CRUD de libros con
+filtros y paginación, categorías propias por usuario, reseñas anidadas en cada libro y
+estadísticas de lectura (libros terminados por mes, días que ha costado cada uno) — todo con la
+garantía de que un usuario nunca puede ver ni tocar los datos de otro.
 
 ## ✨ Puntos a destacar
 
@@ -34,6 +35,8 @@ cada uno) — todo con la garantía de que un usuario nunca puede ver ni tocar l
 - **Validación de negocio propia con Bean Validation**: `@HalfStep` (reseñas, solo admite medias estrellas) y `@ValidDateRange` (libros, `finishedAt` no puede ser anterior a `startedAt`) son anotaciones a medida con su propio `ConstraintValidator`, igual que `@Min`/`@Max` para cualquier otra regla del dominio — esta última incluso redirige el error a un campo concreto (`finishedAt`) desde una validación a nivel de clase.
 - **Listo para producción sin cambiar código**: toda la configuración (BD, JWT, CORS) sale de variables de entorno, con valores por defecto sensatos para desarrollo local.
 - **Estadísticas calculadas al vuelo**: `/api/stats` agrupa los libros del usuario en memoria con la Stream API (por mes de `finishedAt`, por estado, etc.) en vez de mantener contadores desnormalizados — sencillo y suficientemente rápido para el tamaño real de una biblioteca personal.
+- **Verificación de email sin bloquear el arranque si el correo falla**: `management.health.mail.enabled=false` — por defecto, Spring Boot Actuator añade un chequeo de salud que abre una conexión SMTP real en cada `/actuator/health` en cuanto detecta `spring-boot-starter-mail` en el classpath; sin desactivarlo, un problema puntual de Gmail (o no tener credenciales en local) tumbaba el health check de *todo* el servicio, no solo el envío de correos.
+- **Cuentas existentes no se rompen al añadir la verificación**: `email_verified` se añade con `@ColumnDefault("true")`, así que Hibernate migra las cuentas que ya existían en la base de datos como verificadas; solo las cuentas nuevas nacen sin verificar.
 
 ## 🛠️ Cómo está hecho
 
@@ -94,6 +97,13 @@ mvn spring-boot:run
 | `JWT_SECRET` | *(valor de desarrollo)* | Secreto de firma. **Obligatorio en producción**, mínimo 32 caracteres |
 | `JWT_EXPIRATION_MS` | `86400000` (24 h) | Caducidad del token |
 | `CORS_ALLOWED_ORIGINS` | `http://localhost:4200` | Orígenes permitidos, separados por comas |
+| `FRONTEND_URL` | `http://localhost:4200` | Base de los enlaces de verificación/recuperación en los emails |
+| `MAIL_ENABLED` | `false` | Si es `false`, no se envía ningún email de verdad: el enlace se deja en el log (así se puede probar el flujo completo en local sin credenciales) |
+| `MAIL_HOST` | `smtp.gmail.com` | Servidor SMTP |
+| `MAIL_PORT` | `587` | Puerto SMTP |
+| `MAIL_USERNAME` | — | Cuenta de Gmail que envía los correos |
+| `MAIL_PASSWORD` | — | [Contraseña de aplicación](https://myaccount.google.com/apppasswords) de esa cuenta (no la contraseña normal; requiere verificación en dos pasos activada) |
+| `MAIL_FROM` | el valor de `MAIL_USERNAME` | Remitente de los emails |
 | `DDL_AUTO` | `update` | Estrategia de esquema de Hibernate |
 | `PORT` | `8080` | Puerto HTTP (Render lo inyecta automáticamente) |
 
@@ -113,10 +123,16 @@ El token se obtiene en `register` o `login` y caduca a las 24 h.
 
 | Método | Ruta | Cuerpo | Respuesta |
 |---|---|---|---|
-| `POST` | `/api/auth/register` | `{ email, password, name }` | `201` + `{ token, tokenType, expiresIn, user }` |
-| `POST` | `/api/auth/login` | `{ email, password }` | `200` + `{ token, tokenType, expiresIn, user }` |
+| `POST` | `/api/auth/register` | `{ email, password, name }` | `201` + `{ message }` |
+| `POST` | `/api/auth/login` | `{ email, password }` | `200` + `{ token, tokenType, expiresIn, user }`, o `403` si el email no está verificado |
+| `GET` | `/api/auth/verify-email?token=` | — | `200` + `{ token, tokenType, expiresIn, user }` (verifica y deja logueado de una vez) |
+| `POST` | `/api/auth/resend-verification` | `{ email }` | `200` + `{ message }`, siempre el mismo mensaje exista o no la cuenta |
+| `POST` | `/api/auth/forgot-password` | `{ email }` | `200` + `{ message }`, siempre el mismo mensaje exista o no la cuenta |
+| `POST` | `/api/auth/reset-password` | `{ token, newPassword }` | `200` + `{ message }` |
 
-`password`: entre 8 y 72 caracteres.
+`password`: entre 8 y 72 caracteres. El registro ya no deja logueado de inmediato: hay que
+verificar el email primero (enlace válido 24 h). El token de `forgot-password` caduca en 1 h y
+solo sirve una vez.
 
 **Usuario**
 
@@ -226,9 +242,10 @@ que la base de datos de Shelfy vive en [Neon](https://neon.tech) (gratis, sin es
 backend en Render como Web Service.
 
 **Opción rápida — Blueprint**: el repo incluye [`render.yaml`](./render.yaml). En el dashboard:
-**New → Blueprint** → conecta `shelfy-backend`. Te pedirá `DB_HOST`, `DB_NAME`, `DB_USER` y
-`DB_PASSWORD` (los datos de conexión de Neon); `DB_PORT`, `DB_SSLMODE=require` y `JWT_SECRET` ya
-vienen resueltos, y `CORS_ALLOWED_ORIGINS` apunta al frontend en Vercel.
+**New → Blueprint** → conecta `shelfy-backend`. Te pedirá `DB_HOST`, `DB_NAME`, `DB_USER`,
+`DB_PASSWORD` (los datos de conexión de Neon) y `MAIL_USERNAME`/`MAIL_PASSWORD` (ver abajo);
+`DB_PORT`, `DB_SSLMODE=require`, `JWT_SECRET`, `MAIL_ENABLED` y `FRONTEND_URL` ya vienen resueltos,
+y `CORS_ALLOWED_ORIGINS` apunta al frontend en Vercel.
 
 **Opción manual**: **New → Web Service** → conecta este repositorio → runtime **Docker**. En
 *Environment*, define las mismas variables a mano. Health check path: `/actuator/health`.
@@ -239,6 +256,18 @@ vienen resueltos, y `CORS_ALLOWED_ORIGINS` apunta al frontend en Vercel.
 El plan Free de Render duerme el servicio tras ~15 min sin uso (la primera petición después puede
 tardar cerca de un minuto); Neon hiberna la base de datos de forma parecida y se despierta sola en
 la siguiente conexión.
+
+**Enviar emails de verdad (Gmail):**
+
+1. Activa la verificación en dos pasos en la cuenta de Gmail que vaya a enviar los correos.
+2. Genera una [contraseña de aplicación](https://myaccount.google.com/apppasswords) (16
+   caracteres, distinta de tu contraseña normal).
+3. En Render, define `MAIL_USERNAME` con esa cuenta de Gmail y `MAIL_PASSWORD` con la contraseña
+   de aplicación (**nunca la contraseña normal de la cuenta**). `MAIL_ENABLED=true` ya viene en el
+   Blueprint.
+4. En local, deja `MAIL_ENABLED` sin definir (por defecto `false`): los enlaces de verificación y
+   de recuperación se escriben en el log del servidor en vez de enviarse, para poder probar el
+   flujo entero sin credenciales reales.
 
 </details>
 

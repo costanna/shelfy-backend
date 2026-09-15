@@ -24,5 +24,13 @@ services:
         value: "86400000"
       - key: CORS_ALLOWED_ORIGINS
         value: https://shelfy-frontend-six.vercel.app
+      - key: FRONTEND_URL
+        value: https://shelfy-frontend-six.vercel.app
       - key: DDL_AUTO
         value: update
+      - key: MAIL_ENABLED
+        value: "true"
+      - key: MAIL_USERNAME
+        sync: false
+      - key: MAIL_PASSWORD
+        sync: false
