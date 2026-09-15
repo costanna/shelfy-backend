@@ -1,37 +1,84 @@
-# Shelfy — Backend
+# 📚 Shelfy — Backend
 
-API REST para organizar lecturas: libros leídos, pendientes, por comprar, categorías propias y reseñas.
+> API REST para Shelfy, una biblioteca personal: libros por estado de lectura, categorías propias y reseñas privadas, con autenticación JWT y aislamiento estricto por usuario.
 
-**Stack:** Spring Boot 3.5 · Java 21 · Spring Data JPA · Spring Security (JWT) · PostgreSQL
+[![API en vivo](https://img.shields.io/badge/API-en%20vivo-brightgreen)](https://shelfy-backend-prw2.onrender.com/actuator/health)
+![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5-6DB33F?logo=springboot&logoColor=white)
+![Java](https://img.shields.io/badge/Java-21-ED8B00?logo=openjdk&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Neon-4169E1?logo=postgresql&logoColor=white)
+![JWT](https://img.shields.io/badge/Auth-JWT-000000?logo=jsonwebtokens&logoColor=white)
+![License](https://img.shields.io/badge/license-MIT-blue)
+
+Este repositorio es el **backend**. El frontend (Angular) que lo consume vive en
+[**shelfy-frontend**](https://github.com/costanna/shelfy-frontend) —
+**[🔗 pruébalo en vivo](https://shelfy-frontend-six.vercel.app)** (cuenta de prueba ya cargada con
+datos: `demo@shelfy.app` / `shelfy123`).
+
+> Desplegado en el plan gratuito de Render: si lleva un rato dormido, la primera petición puede
+> tardar hasta un minuto en responder. Es normal, no un error.
 
 ---
 
-## Arrancar en local
+## 📖 Qué expone
 
-### Opción A — sin instalar PostgreSQL (H2 en memoria)
+Registro/login, CRUD de libros con filtros y paginación, categorías propias por usuario, y
+reseñas anidadas en cada libro — todo con la garantía de que un usuario nunca puede ver ni tocar
+los datos de otro.
+
+## ✨ Puntos a destacar
+
+- **Autenticación JWT** de principio a fin (Spring Security), con contraseñas con hash y expiración de token configurable.
+- **Aislamiento por usuario a nivel de datos**, no solo de UI: pedir un libro, categoría o reseña ajena devuelve `404`, no `403`, para no revelar siquiera que existe. Se aplica de forma consistente en el `Service`, no confiando en el filtrado del cliente.
+- **Filtros y paginación reales** en `GET /api/books` (estado, categoría, texto libre, orden), con `Specification` de Spring Data JPA en vez de *queries* ad hoc por cada combinación de filtros.
+- **Manejo de errores centralizado**: un único `@ControllerAdvice` traduce validaciones, duplicados y recursos no encontrados a un formato de error consistente en toda la API.
+- **Listo para producción sin cambiar código**: toda la configuración (BD, JWT, CORS) sale de variables de entorno, con valores por defecto sensatos para desarrollo local.
+
+## 🛠️ Cómo está hecho
+
+| | |
+|---|---|
+| **Stack** | Spring Boot 3.5 · Java 21 · Spring Data JPA · Spring Security · Bean Validation · Lombok |
+| **Base de datos** | PostgreSQL (Neon en producción; H2 en memoria o Docker en local) |
+| **Despliegue** | Render (Web Service, Docker) vía Blueprint ([`render.yaml`](./render.yaml)) |
+
+```text
+com.shelfy
+├── auth/          registro y login (controller, service, dto)
+├── user/          perfil y preferencias de tema/idioma
+├── book/          entidad, filtros, CRUD
+├── category/      categorías propias del usuario
+├── review/        reseñas anidadas en libros
+├── security/      JwtService, filtro JWT, UserPrincipal
+├── config/        seguridad, CORS y datos de ejemplo
+└── common/        errores de API y respuesta paginada
+```
+
+Un paquete por *feature* (no por capa técnica), con las clases de cada uno separadas por
+responsabilidad: `Controller` → `Service` → `Repository`, DTOs de entrada/salida propios y un
+`Mapper` entre entidad y DTO.
+
+## 🚀 Arrancar en local
+
+Sin instalar PostgreSQL, con datos de ejemplo:
 
 ```bash
 mvn spring-boot:run -Dspring-boot.run.profiles=local
 ```
 
-Levanta en `http://localhost:8080` con datos de ejemplo y un usuario listo para probar:
+Levanta en `http://localhost:8080` con una cuenta lista para probar (`demo@shelfy.app` /
+`shelfy123`) sobre una base H2 en memoria — se pierde al parar el servidor.
 
-| Email | Contraseña |
-|---|---|
-| `demo@shelfy.app` | `shelfy123` |
-
-Los datos se pierden al parar el servidor (es una base en memoria).
-
-### Opción B — con PostgreSQL vía Docker
+Con PostgreSQL de verdad, vía Docker:
 
 ```bash
 docker compose up -d
 mvn spring-boot:run
 ```
 
----
+<details>
+<summary><strong>Más detalles: variables de entorno, endpoints, formato de errores, despliegue</strong></summary>
 
-## Variables de entorno
+### Variables de entorno
 
 | Variable | Por defecto | Para qué sirve |
 |---|---|---|
@@ -48,26 +95,19 @@ mvn spring-boot:run
 | `DDL_AUTO` | `update` | Estrategia de esquema de Hibernate |
 | `PORT` | `8080` | Puerto HTTP (Render lo inyecta automáticamente) |
 
----
-
-## Autenticación
+### Autenticación
 
 Todos los endpoints excepto `/api/auth/**` requieren la cabecera:
 
-```
+```text
 Authorization: Bearer <token>
 ```
 
 El token se obtiene en `register` o `login` y caduca a las 24 h.
 
-Cada usuario solo ve y modifica sus propios libros, categorías y reseñas: pedir
-un recurso ajeno devuelve `404`, no `403`, para no revelar que existe.
+### Endpoints
 
----
-
-## Endpoints
-
-### Auth
+**Auth**
 
 | Método | Ruta | Cuerpo | Respuesta |
 |---|---|---|---|
@@ -76,7 +116,7 @@ un recurso ajeno devuelve `404`, no `403`, para no revelar que existe.
 
 `password`: entre 8 y 72 caracteres.
 
-### Usuario
+**Usuario**
 
 | Método | Ruta | Cuerpo | Respuesta |
 |---|---|---|---|
@@ -86,7 +126,7 @@ un recurso ajeno devuelve `404`, no `403`, para no revelar que existe.
 - `themePreference`: `LIGHT` · `DARK` · `SYSTEM`
 - `languagePreference`: `en` · `ca` · `es`
 
-### Libros
+**Libros**
 
 | Método | Ruta | Cuerpo | Respuesta |
 |---|---|---|---|
@@ -96,19 +136,12 @@ un recurso ajeno devuelve `404`, no `403`, para no revelar que existe.
 | `PUT` | `/api/books/{id}` | `BookRequest` | Libro actualizado |
 | `DELETE` | `/api/books/{id}` | — | `204` |
 
-**Filtros de `GET /api/books`** (todos opcionales y combinables):
-
-| Parámetro | Ejemplo | Efecto |
-|---|---|---|
-| `status` | `?status=READING` | Filtra por estado |
-| `categoryId` | `?categoryId=3` | Solo libros de esa categoría |
-| `q` | `?q=dune` | Busca en título y autor (sin distinguir mayúsculas) |
-| `page` / `size` | `?page=0&size=12` | Paginación (12 por defecto) |
-| `sort` | `?sort=title,asc` | Orden (por defecto `createdAt,desc`) |
-
-**`BookRequest`**
+Filtros de `GET /api/books` (opcionales y combinables): `status`, `categoryId`, `q` (texto libre
+en título/autor), `page`/`size` (paginación, 12 por defecto), `sort` (por defecto
+`createdAt,desc`).
 
 ```json
+// BookRequest — solo title y status son obligatorios
 {
   "title": "Dune",
   "author": "Frank Herbert",
@@ -121,22 +154,9 @@ un recurso ajeno devuelve `404`, no `403`, para no revelar que existe.
 }
 ```
 
-Solo `title` y `status` son obligatorios. `status`: `WANT_TO_READ` · `READING` · `READ` · `WANT_TO_BUY`.
+`status`: `WANT_TO_READ` · `READING` · `READ` · `WANT_TO_BUY`.
 
-**Respuesta paginada**
-
-```json
-{
-  "content": [ /* libros */ ],
-  "page": 0,
-  "size": 12,
-  "totalElements": 42,
-  "totalPages": 4,
-  "last": false
-}
-```
-
-### Categorías
+**Categorías**
 
 | Método | Ruta | Cuerpo | Respuesta |
 |---|---|---|---|
@@ -147,7 +167,7 @@ Solo `title` y `status` son obligatorios. `status`: `WANT_TO_READ` · `READING` 
 
 Nombres duplicados dentro del mismo usuario devuelven `409`.
 
-### Reseñas (anidadas en libros)
+**Reseñas** (anidadas en libros)
 
 | Método | Ruta | Cuerpo | Respuesta |
 |---|---|---|---|
@@ -158,9 +178,7 @@ Nombres duplicados dentro del mismo usuario devuelven `409`.
 
 `rating`: entero de 1 a 5.
 
----
-
-## Formato de errores
+### Formato de errores
 
 ```json
 {
@@ -168,9 +186,7 @@ Nombres duplicados dentro del mismo usuario devuelven `409`.
   "status": 400,
   "error": "Bad Request",
   "message": "Datos de entrada no válidos",
-  "fieldErrors": {
-    "password": "La contraseña debe tener entre 8 y 72 caracteres"
-  }
+  "fieldErrors": { "password": "La contraseña debe tener entre 8 y 72 caracteres" }
 }
 ```
 
@@ -183,59 +199,29 @@ Nombres duplicados dentro del mismo usuario devuelven `409`.
 | `404` | El recurso no existe o pertenece a otro usuario |
 | `409` | Email o nombre de categoría ya en uso |
 
----
-
-## Estructura del proyecto
-
-Un paquete por *feature*, con las clases separadas por responsabilidad:
-
-```
-com.shelfy
-├── auth/          registro y login (controller, service, dto)
-├── user/          perfil y preferencias de tema/idioma
-├── book/          entidad, filtros, CRUD
-├── category/      categorías propias del usuario
-├── review/        reseñas anidadas en libros
-├── security/      JwtService, filtro JWT, UserPrincipal
-├── config/        seguridad, CORS y datos de ejemplo
-└── common/        errores de API y respuesta paginada
-```
-
----
-
-## Desplegar en Render (backend) + Neon (base de datos)
+### Desplegar en Render (backend) + Neon (base de datos)
 
 El plan Free de Render solo permite **una** base de datos PostgreSQL gestionada por cuenta, así
-que si ya tienes una en uso, la base de datos de Shelfy vive en
-[Neon](https://neon.tech) (gratis, sin ese límite) y el backend en Render como Web Service.
+que la base de datos de Shelfy vive en [Neon](https://neon.tech) (gratis, sin ese límite) y el
+backend en Render como Web Service.
 
-### 1. Crear la base de datos en Neon
+**Opción rápida — Blueprint**: el repo incluye [`render.yaml`](./render.yaml). En el dashboard:
+**New → Blueprint** → conecta `shelfy-backend`. Te pedirá `DB_HOST`, `DB_NAME`, `DB_USER` y
+`DB_PASSWORD` (los datos de conexión de Neon); `DB_PORT`, `DB_SSLMODE=require` y `JWT_SECRET` ya
+vienen resueltos, y `CORS_ALLOWED_ORIGINS` apunta al frontend en Vercel.
 
-1. Crea una cuenta en [neon.tech](https://neon.tech) (vale con GitHub) y un proyecto nuevo.
-2. Neon te da una *connection string* del tipo:
-   `postgresql://usuario:clave@ep-xxxx.región.aws.neon.tech/neondb?sslmode=require`
-3. De ahí sacas: `DB_HOST` (el `ep-xxxx...neon.tech`), `DB_NAME` (`neondb` o el nombre que le
-   hayas puesto), `DB_USER` y `DB_PASSWORD`.
+**Opción manual**: **New → Web Service** → conecta este repositorio → runtime **Docker**. En
+*Environment*, define las mismas variables a mano. Health check path: `/actuator/health`.
 
-### 2. Desplegar el backend — Blueprint
+> Usa el endpoint **directo** de Neon, no el `-pooler`: con PgBouncer en modo *transaction* y
+> Hibernate pueden darse errores intermitentes de *prepared statement*.
 
-Este repo incluye [`render.yaml`](./render.yaml). En el dashboard: **New → Blueprint** → conecta
-`shelfy-backend`. Al aplicar el Blueprint te pedirá `DB_HOST`, `DB_NAME`, `DB_USER` y
-`DB_PASSWORD` (quedan como "sync: false", sin valor por defecto): rellénalos con los datos de
-Neon del paso anterior. `DB_PORT`, `DB_SSLMODE=require` y `JWT_SECRET` ya vienen resueltos.
-`CORS_ALLOWED_ORIGINS` apunta al frontend en Vercel; si esa URL cambia, actualízala en
-[`render.yaml`](./render.yaml) o directamente en *Environment* del servicio.
+El plan Free de Render duerme el servicio tras ~15 min sin uso (la primera petición después puede
+tardar cerca de un minuto); Neon hiberna la base de datos de forma parecida y se despierta sola en
+la siguiente conexión.
 
-### Opción manual
+</details>
 
-1. **New → Web Service** → conecta este repositorio → runtime **Docker** (usa el `Dockerfile` incluido).
-2. En *Environment*, define `DB_HOST`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` (datos de Neon),
-   `DB_SSLMODE=require`, `JWT_SECRET` y `CORS_ALLOWED_ORIGINS` con la URL del frontend.
-3. Health check path: `/actuator/health`.
+## 📄 Licencia
 
-> Si prefieres no montar la URL a mano con `DB_HOST`/`DB_NAME`/etc., puedes definir `DB_URL`
-> entera en su lugar: `jdbc:postgresql://host/base?sslmode=require`, con usuario y clave en sus
-> propias variables. `DB_URL`, si se define, tiene prioridad sobre las variables sueltas.
-
-El plan Free duerme el servicio tras ~15 min sin uso: la primera petición después puede tardar cerca de un minuto.
-Neon, por su parte, "hiberna" la base de datos tras un rato de inactividad y se despierta sola en la siguiente conexión (también puede añadir algo de latencia a la primera petición).
+[MIT](./LICENSE)
