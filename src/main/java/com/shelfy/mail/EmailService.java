@@ -3,6 +3,7 @@ package com.shelfy.mail;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.mail.MailException;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
@@ -11,6 +12,11 @@ import org.springframework.stereotype.Service;
  * Si {@code shelfy.mail.enabled} es false (por defecto en local), no manda
  * nada de verdad: deja el enlace en el log para poder probar el flujo
  * completo sin credenciales reales de correo.
+ *
+ * Un fallo real de envío (proveedor caído, credenciales incorrectas...) se
+ * registra en el log pero nunca se propaga: registrarse o pedir un cambio de
+ * contraseña no puede depender de que el proveedor de correo esté sano en
+ * ese momento.
  */
 @Service
 @RequiredArgsConstructor
@@ -71,6 +77,11 @@ public class EmailService {
         message.setTo(to);
         message.setSubject(subject);
         message.setText(body);
-        mailSender.send(message);
+
+        try {
+            mailSender.send(message);
+        } catch (MailException ex) {
+            log.warn("No se pudo enviar el correo a {} (\"{}\"): {}", to, subject, ex.getMessage());
+        }
     }
 }
