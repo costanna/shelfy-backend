@@ -33,7 +33,6 @@ public class UserService {
         return userMapper.toResponse(user);
     }
 
-    /** Referencia a la entidad gestionada, para asociarla como owner de libros/categorías. */
     @Transactional(readOnly = true)
     public User getEntity(Long id) {
         return findOrThrow(id);

@@ -9,7 +9,6 @@ import org.springframework.security.core.userdetails.UserDetails;
 import java.util.Collection;
 import java.util.List;
 
-/** Usuario autenticado. Expone el id para no tener que recargar el User en cada controlador. */
 @Getter
 public class UserPrincipal implements UserDetails {
 
