@@ -35,7 +35,10 @@ mvn spring-boot:run
 
 | Variable | Por defecto | Para qué sirve |
 |---|---|---|
-| `DB_URL` | `jdbc:postgresql://localhost:5432/shelfy` | URL JDBC de PostgreSQL |
+| `DB_URL` | *(compuesta, ver abajo)* | URL JDBC completa de PostgreSQL. Si se define, tiene prioridad sobre `DB_HOST`/`DB_PORT`/`DB_NAME` |
+| `DB_HOST` | `localhost` | Host de PostgreSQL (alternativa a `DB_URL`, usada por `render.yaml`) |
+| `DB_PORT` | `5432` | Puerto de PostgreSQL |
+| `DB_NAME` | `shelfy` | Nombre de la base de datos |
 | `DB_USER` | `shelfy` | Usuario de base de datos |
 | `DB_PASSWORD` | `shelfy` | Contraseña de base de datos |
 | `JWT_SECRET` | *(valor de desarrollo)* | Secreto de firma. **Obligatorio en producción**, mínimo 32 caracteres |
@@ -201,6 +204,15 @@ com.shelfy
 
 ## Desplegar en Render
 
+### Opción rápida — Blueprint
+
+Este repo incluye [`render.yaml`](./render.yaml). En el dashboard: **New → Blueprint** → conecta
+`shelfy-backend`. Crea la base de datos y el Web Service ya enlazados (host, usuario y contraseña
+se inyectan solos vía `DB_HOST`/`DB_USER`/`DB_PASSWORD`) y genera `JWT_SECRET` automáticamente.
+Solo falta revisar `CORS_ALLOWED_ORIGINS` con la URL real del Static Site del frontend.
+
+### Opción manual
+
 1. **New → PostgreSQL** (plan Free) y copia la *Internal Database URL*.
 2. **New → Web Service** → conecta este repositorio → runtime **Docker** (usa el `Dockerfile` incluido).
 3. En *Environment*, define: `DB_URL`, `DB_USER`, `DB_PASSWORD`, `JWT_SECRET` y `CORS_ALLOWED_ORIGINS` con la URL del frontend.
@@ -208,5 +220,7 @@ com.shelfy
 
 > La `Internal Database URL` de Render viene en formato `postgres://usuario:clave@host/base`.
 > `DB_URL` necesita formato JDBC: `jdbc:postgresql://host/base`, con usuario y clave en sus propias variables.
+> Si prefieres no montar esa URL a mano, deja `DB_URL` sin definir y usa `DB_HOST`/`DB_PORT`/`DB_NAME` sueltos
+> (es justo lo que hace el Blueprint de arriba).
 
 El plan Free duerme el servicio tras ~15 min sin uso: la primera petición después puede tardar cerca de un minuto.
