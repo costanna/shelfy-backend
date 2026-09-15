@@ -42,11 +42,6 @@ public class StatsService {
         return new ReadingStatsResponse(totalBooksRead, books.size(), readingDurations, booksByMonth);
     }
 
-    /**
-     * Cuántos libros se terminaron cada mes: solo cuenta los marcados como
-     * READ que además tienen finishedAt (un libro READ sin fecha de fin no
-     * se puede atribuir a ningún mes). Orden de más reciente a más antiguo.
-     */
     private List<MonthlyReadCount> booksByMonth(List<Book> books) {
         Map<YearMonth, Long> counts = books.stream()
                 .filter(book -> book.getStatus() == BookStatus.READ && book.getFinishedAt() != null)
@@ -66,7 +61,6 @@ public class StatsService {
                 .toList();
     }
 
-    /** Cuenta el día de inicio y el de fin como leídos (empezar y acabar el mismo día son "1 día"). */
     private BookReadingDuration toDuration(Book book) {
         long days = ChronoUnit.DAYS.between(book.getStartedAt(), book.getFinishedAt()) + 1;
         return new BookReadingDuration(
