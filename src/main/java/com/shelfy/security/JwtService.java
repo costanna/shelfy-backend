@@ -53,7 +53,6 @@ public class JwtService {
                 .getPayload();
     }
 
-    /** Acepta el secreto en Base64 o como texto plano (mínimo 32 bytes para HS256). */
     private static SecretKey buildKey(String secret) {
         try {
             return Keys.hmacShaKeyFor(Decoders.BASE64.decode(secret));

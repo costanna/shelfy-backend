@@ -17,10 +17,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.Set;
 
-/**
- * Crea un usuario de prueba con algunos libros cuando shelfy.seed.enabled=true
- * (solo en el perfil local). Credenciales: demo@shelfy.app / shelfy123
- */
 @Configuration
 @ConditionalOnProperty(name = "shelfy.seed.enabled", havingValue = "true")
 @RequiredArgsConstructor

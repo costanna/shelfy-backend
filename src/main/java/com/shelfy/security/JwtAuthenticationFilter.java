@@ -43,8 +43,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             } catch (Exception ex) {
-                // Token inválido o caducado: la petición sigue como anónima y
-                // el EntryPoint devolverá 401 si el endpoint está protegido.
                 log.debug("Token JWT rechazado: {}", ex.getMessage());
                 SecurityContextHolder.clearContext();
             }

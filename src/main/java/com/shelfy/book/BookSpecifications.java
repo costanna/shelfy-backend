@@ -5,11 +5,6 @@ import jakarta.persistence.criteria.Join;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.util.StringUtils;
 
-/**
- * Filtros componibles para la búsqueda de libros.
- * Cada método devuelve null cuando el filtro no aplica, de modo que
- * {@link Specification#and(Specification)} lo ignora.
- */
 final class BookSpecifications {
 
     private BookSpecifications() {

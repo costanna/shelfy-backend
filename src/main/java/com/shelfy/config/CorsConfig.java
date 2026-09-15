@@ -12,10 +12,6 @@ import java.util.List;
 @Configuration
 public class CorsConfig {
 
-    /**
-     * Orígenes permitidos. En local: http://localhost:4200.
-     * En Render se sobreescribe con la variable de entorno CORS_ALLOWED_ORIGINS.
-     */
     @Value("${shelfy.cors.allowed-origins}")
     private List<String> allowedOrigins;
 

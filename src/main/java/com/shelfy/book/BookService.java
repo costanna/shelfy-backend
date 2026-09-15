@@ -64,7 +64,6 @@ public class BookService {
         bookRepository.delete(book);
     }
 
-    /** Valida que el libro pertenece al usuario. Lo usa también ReviewService. */
     @Transactional(readOnly = true)
     public Book findOwned(Long ownerId, Long id) {
         return bookRepository.findByIdAndOwnerId(id, ownerId)

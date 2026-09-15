@@ -56,7 +56,6 @@ public class CategoryService {
         categoryRepository.delete(findOwned(ownerId, id));
     }
 
-    /** Resuelve los ids a categorías del propio usuario; ignora ids ajenos o inexistentes. */
     @Transactional(readOnly = true)
     public Set<Category> resolveOwned(Long ownerId, Set<Long> ids) {
         if (ids == null || ids.isEmpty()) {
