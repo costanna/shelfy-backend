@@ -4,6 +4,7 @@ import com.shelfy.book.BookStatus;
 import com.shelfy.category.dto.CategoryResponse;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 
 public record BookResponse(
@@ -15,6 +16,8 @@ public record BookResponse(
         String synopsis,
         Integer pageCount,
         BookStatus status,
+        LocalDate startedAt,
+        LocalDate finishedAt,
         List<CategoryResponse> categories,
         Instant createdAt,
         Instant updatedAt

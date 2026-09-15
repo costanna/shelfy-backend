@@ -31,7 +31,7 @@ los datos de otro.
 - **Aislamiento por usuario a nivel de datos**, no solo de UI: pedir un libro, categoría o reseña ajena devuelve `404`, no `403`, para no revelar siquiera que existe. Se aplica de forma consistente en el `Service`, no confiando en el filtrado del cliente.
 - **Filtros y paginación reales** en `GET /api/books` (estado, categoría, texto libre, orden), con `Specification` de Spring Data JPA en vez de *queries* ad hoc por cada combinación de filtros.
 - **Manejo de errores centralizado**: un único `@ControllerAdvice` traduce validaciones, duplicados y recursos no encontrados a un formato de error consistente en toda la API.
-- **Validación de negocio propia con Bean Validation**: `@HalfStep`, una anotación de validación a medida (con su `ConstraintValidator`), rechaza puntuaciones como `3.3` en las reseñas — solo se aceptan medias estrellas (`0.5`, `1.0`, `1.5`... `5.0`), igual que `@Min`/`@Max` para cualquier otra regla del dominio.
+- **Validación de negocio propia con Bean Validation**: `@HalfStep` (reseñas, solo admite medias estrellas) y `@ValidDateRange` (libros, `finishedAt` no puede ser anterior a `startedAt`) son anotaciones a medida con su propio `ConstraintValidator`, igual que `@Min`/`@Max` para cualquier otra regla del dominio — esta última incluso redirige el error a un campo concreto (`finishedAt`) desde una validación a nivel de clase.
 - **Listo para producción sin cambiar código**: toda la configuración (BD, JWT, CORS) sale de variables de entorno, con valores por defecto sensatos para desarrollo local.
 
 ## 🛠️ Cómo está hecho
@@ -151,11 +151,25 @@ en título/autor), `page`/`size` (paginación, 12 por defecto), `sort` (por defe
   "synopsis": "...",
   "pageCount": 688,
   "status": "WANT_TO_READ",
+  "startedAt": "2026-01-01",
+  "finishedAt": "2026-01-10",
   "categoryIds": [1, 3]
 }
 ```
 
-`status`: `WANT_TO_READ` · `READING` · `READ` · `WANT_TO_BUY`.
+`status`: `WANT_TO_READ` · `READING` · `READ` · `WANT_TO_BUY`. `startedAt`/`finishedAt`: fechas
+`ISO-8601` (`AAAA-MM-DD`), opcionales; si se envían ambas, `finishedAt` no puede ser anterior a
+`startedAt` (`400` si lo es).
+
+**Estadísticas de lectura**
+
+| Método | Ruta | Cuerpo | Respuesta |
+|---|---|---|---|
+| `GET` | `/api/stats` | — | `{ totalBooksRead, totalBooks, readingDurations }` |
+
+`readingDurations`: un elemento por libro con `startedAt` y `finishedAt` rellenos —
+`{ bookId, title, startedAt, finishedAt, daysReading }`, orden de más reciente a más antiguo.
+`daysReading` cuenta el día de inicio y el de fin (empezar y acabar el mismo día cuenta como 1).
 
 **Categorías**
 

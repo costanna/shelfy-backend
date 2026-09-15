@@ -1,13 +1,16 @@
 package com.shelfy.book.dto;
 
 import com.shelfy.book.BookStatus;
+import com.shelfy.book.validation.ValidDateRange;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
+import java.time.LocalDate;
 import java.util.Set;
 
+@ValidDateRange
 public record BookRequest(
         @NotBlank(message = "El título es obligatorio")
         @Size(max = 255, message = "El título no puede superar los 255 caracteres")
@@ -29,6 +32,10 @@ public record BookRequest(
 
         @NotNull(message = "El estado es obligatorio")
         BookStatus status,
+
+        LocalDate startedAt,
+
+        LocalDate finishedAt,
 
         Set<Long> categoryIds
 ) {

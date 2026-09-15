@@ -13,6 +13,7 @@ import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
@@ -51,6 +52,12 @@ public class Book {
     @Column(nullable = false, length = 20)
     @Builder.Default
     private BookStatus status = BookStatus.WANT_TO_READ;
+
+    @Column(name = "started_at")
+    private LocalDate startedAt;
+
+    @Column(name = "finished_at")
+    private LocalDate finishedAt;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "owner_id", nullable = false)
