@@ -23,6 +23,8 @@ public class BookMapper {
                 book.getSynopsis(),
                 book.getPageCount(),
                 book.getStatus(),
+                book.getStartedAt(),
+                book.getFinishedAt(),
                 book.getCategories().stream()
                         .sorted(Comparator.comparing(c -> c.getName().toLowerCase()))
                         .map(categoryMapper::toResponse)

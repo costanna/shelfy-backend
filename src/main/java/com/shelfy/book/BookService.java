@@ -78,6 +78,8 @@ public class BookService {
         book.setSynopsis(request.synopsis());
         book.setPageCount(request.pageCount());
         book.setStatus(request.status());
+        book.setStartedAt(request.startedAt());
+        book.setFinishedAt(request.finishedAt());
         book.setCategories(new LinkedHashSet<>(
                 categoryService.resolveOwned(ownerId, request.categoryIds())));
     }
