@@ -147,15 +147,26 @@ solo sirve una vez.
 
 | Método | Ruta | Cuerpo | Respuesta |
 |---|---|---|---|
-| `GET` | `/api/users/me` | — | `{ id, email, name, alias, themePreference, languagePreference }` |
+| `GET` | `/api/users/me` | — | `{ id, email, name, alias, themePreference, languagePreference, avatarUpdatedAt }` |
 | `PATCH` | `/api/users/me/preferences` | `{ themePreference?, languagePreference? }` | Usuario actualizado |
 | `PATCH` | `/api/users/me/alias` | `{ alias }` | Usuario actualizado, o `409` si el alias ya lo tiene otra cuenta |
+| `POST` | `/api/users/me/avatar` | `multipart/form-data`, campo `file` | Usuario actualizado, o `400` si no es una imagen válida (PNG/JPEG/WEBP, máx. 5 MB) |
+| `DELETE` | `/api/users/me/avatar` | — | Usuario actualizado (idempotente: no falla si no tenías avatar) |
+| `GET` | `/api/users/{id}/avatar` | — | Imagen JPEG (público, sin autenticar), o `404` si ese usuario no tiene avatar |
 
 - `themePreference`: `LIGHT` · `DARK` · `SYSTEM`
 - `languagePreference`: `en` · `ca` · `es`
 - `alias`: 3-24 caracteres, solo letras/números/`_`, único entre cuentas (sin distinguir
   mayúsculas) y sin palabras malsonantes (ES/CA/EN). Opcional — `null` hasta que el usuario elige
   uno.
+- `avatarUpdatedAt`: `null` si no tiene avatar; si no, la fecha en que se subió/cambió — pensada
+  para que el frontend la use como parámetro de caché (`?v=...`) en la URL de la imagen, no para
+  mostrarla. Cualquier imagen subida se recorta a cuadrado (centrado) y se redimensiona a
+  320×320 px en JPEG antes de guardarse, así que el tamaño en base de datos no depende de lo que
+  suba cada usuario. `GET /api/users/{id}/avatar` es la única ruta bajo `/api/users` que no exige
+  sesión: una etiqueta `<img>` no manda el `Authorization` que sí añade el interceptor HTTP del
+  frontend, así que tiene que ser pública — como el resto de la app, no hay nada sensible en la
+  imagen de perfil de alguien.
 
 **Libros**
 

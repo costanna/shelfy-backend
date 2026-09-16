@@ -65,6 +65,7 @@ public class UserService {
                         user.getId(),
                         user.getAlias(),
                         user.getName(),
+                        user.getAvatarUpdatedAt(),
                         followService.followersCount(user.getId()),
                         followService.isFollowing(viewerId, user.getId())
                 ))

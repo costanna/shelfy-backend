@@ -13,7 +13,8 @@ public class UserMapper {
                 user.getName(),
                 user.getAlias(),
                 user.getThemePreference(),
-                user.getLanguagePreference()
+                user.getLanguagePreference(),
+                user.getAvatarUpdatedAt()
         );
     }
 }
