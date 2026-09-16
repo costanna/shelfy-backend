@@ -1,5 +1,6 @@
 package com.shelfy.user;
 
+import com.shelfy.common.dto.PageResponse;
 import com.shelfy.common.exception.DuplicateResourceException;
 import com.shelfy.common.exception.ResourceNotFoundException;
 import com.shelfy.follow.FollowService;
@@ -8,10 +9,10 @@ import com.shelfy.user.dto.UpdateAliasRequest;
 import com.shelfy.user.dto.UpdatePreferencesRequest;
 import com.shelfy.user.dto.UserResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -55,21 +56,20 @@ public class UserService {
     }
 
     @Transactional(readOnly = true)
-    public List<UserSummaryResponse> search(Long viewerId, String query) {
+    public PageResponse<UserSummaryResponse> search(Long viewerId, String query, Pageable pageable) {
         if (query == null || query.isBlank()) {
-            return List.of();
+            return PageResponse.from(Page.<User>empty(pageable), user -> null);
         }
 
-        return userRepository.findTop20ByAliasContainingIgnoreCaseAndIdNot(query, viewerId).stream()
-                .map(user -> new UserSummaryResponse(
-                        user.getId(),
-                        user.getAlias(),
-                        user.getName(),
-                        user.getAvatarUpdatedAt(),
-                        followService.followersCount(user.getId()),
-                        followService.isFollowing(viewerId, user.getId())
-                ))
-                .toList();
+        Page<User> page = userRepository.findByAliasContainingIgnoreCaseAndIdNot(query, viewerId, pageable);
+        return PageResponse.from(page, user -> new UserSummaryResponse(
+                user.getId(),
+                user.getAlias(),
+                user.getName(),
+                user.getAvatarUpdatedAt(),
+                followService.followersCount(user.getId()),
+                followService.isFollowing(viewerId, user.getId())
+        ));
     }
 
     @Transactional(readOnly = true)

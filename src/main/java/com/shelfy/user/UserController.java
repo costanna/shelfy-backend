@@ -1,5 +1,6 @@
 package com.shelfy.user;
 
+import com.shelfy.common.dto.PageResponse;
 import com.shelfy.follow.dto.UserSummaryResponse;
 import com.shelfy.security.UserPrincipal;
 import com.shelfy.user.dto.UpdateAliasRequest;
@@ -8,6 +9,8 @@ import com.shelfy.user.dto.UserProfileResponse;
 import com.shelfy.user.dto.UserResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.CacheControl;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -16,7 +19,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.Duration;
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/users")
@@ -45,9 +47,12 @@ public class UserController {
     }
 
     @GetMapping("/search")
-    public List<UserSummaryResponse> search(@AuthenticationPrincipal UserPrincipal principal,
-                                             @RequestParam(required = false) String q) {
-        return userService.search(principal.getId(), q);
+    public PageResponse<UserSummaryResponse> search(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestParam(required = false) String q,
+            @PageableDefault(size = 20) Pageable pageable
+    ) {
+        return userService.search(principal.getId(), q, pageable);
     }
 
     @GetMapping("/{id}/profile")
