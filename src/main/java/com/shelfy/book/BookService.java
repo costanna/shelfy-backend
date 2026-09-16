@@ -6,6 +6,7 @@ import com.shelfy.book.dto.UpdateReadingDatesRequest;
 import com.shelfy.category.CategoryService;
 import com.shelfy.common.dto.PageResponse;
 import com.shelfy.common.exception.ResourceNotFoundException;
+import com.shelfy.note.NoteRepository;
 import com.shelfy.review.ReviewRepository;
 import com.shelfy.user.UserService;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +23,7 @@ public class BookService {
 
     private final BookRepository bookRepository;
     private final ReviewRepository reviewRepository;
+    private final NoteRepository noteRepository;
     private final BookMapper bookMapper;
     private final CategoryService categoryService;
     private final UserService userService;
@@ -88,6 +90,7 @@ public class BookService {
     public void delete(Long ownerId, Long id) {
         Book book = findOwned(ownerId, id);
         reviewRepository.deleteByBookId(book.getId());
+        noteRepository.deleteByBookId(book.getId());
         bookRepository.delete(book);
     }
 
