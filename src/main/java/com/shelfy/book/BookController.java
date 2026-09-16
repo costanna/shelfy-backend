@@ -2,6 +2,7 @@ package com.shelfy.book;
 
 import com.shelfy.book.dto.BookRequest;
 import com.shelfy.book.dto.BookResponse;
+import com.shelfy.book.dto.UpdateReadingDatesRequest;
 import com.shelfy.common.dto.PageResponse;
 import com.shelfy.security.UserPrincipal;
 import jakarta.validation.Valid;
@@ -56,5 +57,12 @@ public class BookController {
     public void delete(@AuthenticationPrincipal UserPrincipal principal,
                        @PathVariable Long id) {
         bookService.delete(principal.getId(), id);
+    }
+
+    @PatchMapping("/{id}/reading-dates")
+    public BookResponse updateReadingDates(@AuthenticationPrincipal UserPrincipal principal,
+                                           @PathVariable Long id,
+                                           @Valid @RequestBody UpdateReadingDatesRequest request) {
+        return bookService.updateReadingDates(principal.getId(), id, request);
     }
 }

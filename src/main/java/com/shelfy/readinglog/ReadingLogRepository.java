@@ -16,4 +16,7 @@ public interface ReadingLogRepository extends JpaRepository<ReadingLog, Long> {
 
     @Query("select distinct r.date from ReadingLog r where r.owner.id = :ownerId order by r.date desc")
     List<LocalDate> findDistinctDatesByOwnerId(@Param("ownerId") Long ownerId);
+
+    @Query("select r from ReadingLog r join fetch r.book where r.owner.id = :ownerId order by r.date desc")
+    List<ReadingLog> findAllWithBookByOwnerId(@Param("ownerId") Long ownerId);
 }

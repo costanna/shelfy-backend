@@ -2,6 +2,7 @@ package com.shelfy.book;
 
 import com.shelfy.book.dto.BookRequest;
 import com.shelfy.book.dto.BookResponse;
+import com.shelfy.book.dto.UpdateReadingDatesRequest;
 import com.shelfy.category.CategoryService;
 import com.shelfy.common.dto.PageResponse;
 import com.shelfy.common.exception.ResourceNotFoundException;
@@ -54,6 +55,20 @@ public class BookService {
     public BookResponse update(Long ownerId, Long id, BookRequest request) {
         Book book = findOwned(ownerId, id);
         applyRequest(book, request, ownerId);
+        return bookMapper.toResponse(book);
+    }
+
+    @Transactional
+    public BookResponse updateReadingDates(Long ownerId, Long id, UpdateReadingDatesRequest request) {
+        Book book = findOwned(ownerId, id);
+
+        if (request.startedAt() != null && request.finishedAt() != null
+                && request.finishedAt().isBefore(request.startedAt())) {
+            throw new IllegalArgumentException("La fecha de fin no puede ser anterior a la de inicio");
+        }
+
+        book.setStartedAt(request.startedAt());
+        book.setFinishedAt(request.finishedAt());
         return bookMapper.toResponse(book);
     }
 
