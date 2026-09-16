@@ -14,7 +14,8 @@ public class UserMapper {
                 user.getAlias(),
                 user.getThemePreference(),
                 user.getLanguagePreference(),
-                user.getAvatarUpdatedAt()
+                user.getAvatarUpdatedAt(),
+                user.isRemindersEnabled()
         );
     }
 }

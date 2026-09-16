@@ -37,6 +37,9 @@ public class UserService {
         if (request.languagePreference() != null) {
             user.setLanguagePreference(request.languagePreference());
         }
+        if (request.remindersEnabled() != null) {
+            user.setRemindersEnabled(request.remindersEnabled());
+        }
 
         return userMapper.toResponse(user);
     }

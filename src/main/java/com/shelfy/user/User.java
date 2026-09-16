@@ -68,4 +68,9 @@ public class User {
     @ColumnDefault("0")
     @Builder.Default
     private int tokenVersion = 0;
+
+    @Column(name = "reminders_enabled", nullable = false)
+    @ColumnDefault("true")
+    @Builder.Default
+    private boolean remindersEnabled = true;
 }

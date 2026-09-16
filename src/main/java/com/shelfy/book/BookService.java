@@ -15,7 +15,9 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.LinkedHashSet;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -69,6 +71,7 @@ public class BookService {
             throw new IllegalArgumentException("La fecha de fin no puede ser anterior a la de inicio");
         }
 
+        LocalDate previousStartedAt = book.getStartedAt();
         book.setStartedAt(request.startedAt());
         book.setFinishedAt(request.finishedAt());
 
@@ -81,6 +84,10 @@ public class BookService {
             }
         } else if (book.getStatus() == BookStatus.READ || book.getStatus() == BookStatus.READING) {
             book.setStatus(BookStatus.WANT_TO_READ);
+        }
+
+        if (book.getStatus() != BookStatus.READING || !Objects.equals(previousStartedAt, request.startedAt())) {
+            book.setReminderSentAt(null);
         }
 
         return bookMapper.toResponse(book);
@@ -112,5 +119,9 @@ public class BookService {
         book.setFinishedAt(request.finishedAt());
         book.setCategories(new LinkedHashSet<>(
                 categoryService.resolveOwned(ownerId, request.categoryIds())));
+
+        if (book.getStatus() != BookStatus.READING) {
+            book.setReminderSentAt(null);
+        }
     }
 }

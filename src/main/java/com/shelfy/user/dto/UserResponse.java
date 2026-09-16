@@ -12,6 +12,7 @@ public record UserResponse(
         String alias,
         ThemePreference themePreference,
         LanguagePreference languagePreference,
-        Instant avatarUpdatedAt
+        Instant avatarUpdatedAt,
+        boolean remindersEnabled
 ) {
 }

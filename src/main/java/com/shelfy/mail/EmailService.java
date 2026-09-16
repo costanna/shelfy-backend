@@ -8,6 +8,8 @@ import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -54,6 +56,24 @@ public class EmailService {
                 """.formatted(name, link);
 
         send(to, "Recupera tu contraseña de Shelfy", body, link);
+    }
+
+    public void sendStaleReadingReminder(String to, String name, List<String> bookTitles) {
+        String titleList = bookTitles.stream().map(title -> "- " + title).reduce((a, b) -> a + "\n" + b).orElse("");
+        String link = frontendUrl + "/books?status=READING";
+        String body = """
+                Hola %s,
+
+                Hace tiempo que no marcas avances en estos libros que empezaste a leer:
+
+                %s
+
+                Retómalos cuando quieras, o actualiza su estado si ya no te interesan:
+
+                %s
+                """.formatted(name, titleList, link);
+
+        send(to, "¿Sigues con estos libros?", body, link);
     }
 
     private void send(String to, String subject, String body, String link) {
