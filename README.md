@@ -11,7 +11,7 @@
 
 Este repositorio es el **backend**. El frontend (Angular) que lo consume vive en
 [**shelfy-frontend**](https://github.com/costanna/shelfy-frontend) —
-**[🔗 pruébalo en vivo](https://shelfy-frontend-six.vercel.app)** (cuenta de prueba ya cargada con
+**[🔗 pruébalo en vivo](https://shelfy-reads.vercel.app)** (cuenta de prueba ya cargada con
 datos: `demo@shelfy.app` / `shelfy123`).
 
 > Desplegado en el plan gratuito de Render: si lleva un rato dormido, la primera petición puede

@@ -23,9 +23,9 @@ services:
       - key: JWT_EXPIRATION_MS
         value: "86400000"
       - key: CORS_ALLOWED_ORIGINS
-        value: https://shelfy-frontend-six.vercel.app
+        value: https://shelfy-reads.vercel.app,https://shelfy-frontend-six.vercel.app
       - key: FRONTEND_URL
-        value: https://shelfy-frontend-six.vercel.app
+        value: https://shelfy-reads.vercel.app
       - key: DDL_AUTO
         value: update
       - key: MAIL_ENABLED
