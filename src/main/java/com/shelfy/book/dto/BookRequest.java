@@ -25,6 +25,7 @@ public record BookRequest(
         @Size(max = 20, message = "El ISBN no puede superar los 20 caracteres")
         String isbn,
 
+        @Size(max = 5000, message = "La sinopsis no puede superar los 5000 caracteres")
         String synopsis,
 
         @Min(value = 1, message = "El número de páginas debe ser mayor que 0")
