@@ -42,6 +42,7 @@ tiene entre sus seguidores.
 - **Estadísticas calculadas al vuelo**: `/api/stats` agrupa los libros del usuario en memoria con la Stream API (por mes de `finishedAt`, por estado, etc.) en vez de mantener contadores desnormalizados — sencillo y suficientemente rápido para el tamaño real de una biblioteca personal.
 - **Verificación de email sin bloquear el arranque si el correo falla**: `management.health.mail.enabled=false` — por defecto, Spring Boot Actuator añade un chequeo de salud que abre una conexión SMTP real en cada `/actuator/health` en cuanto detecta `spring-boot-starter-mail` en el classpath; sin desactivarlo, un problema puntual de Gmail (o no tener credenciales en local) tumbaba el health check de *todo* el servicio, no solo el envío de correos.
 - **Cuentas existentes no se rompen al añadir la verificación**: `email_verified` se añade con `@ColumnDefault("true")`, así que Hibernate migra las cuentas que ya existían en la base de datos como verificadas; solo las cuentas nuevas nacen sin verificar.
+- **Índices explícitos en las columnas de propietario y claves foráneas** (`books.owner_id`, `categories.owner_id`, `reviews.book_id`/`user_id`, `follows.followed_id`, `book_categories.book_id`/`category_id`): PostgreSQL no las indexa solas por defecto, solo la clave primaria y las `UNIQUE` — y toda consulta de "mis libros/categorías/reseñas" filtra precisamente por una de estas columnas.
 
 ## 🛠️ Cómo está hecho
 

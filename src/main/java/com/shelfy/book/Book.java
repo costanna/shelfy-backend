@@ -18,7 +18,7 @@ import java.util.LinkedHashSet;
 import java.util.Set;
 
 @Entity
-@Table(name = "books")
+@Table(name = "books", indexes = @Index(name = "idx_books_owner_id", columnList = "owner_id"))
 @EntityListeners(AuditingEntityListener.class)
 @Getter
 @Setter
@@ -67,7 +67,11 @@ public class Book {
     @JoinTable(
             name = "book_categories",
             joinColumns = @JoinColumn(name = "book_id"),
-            inverseJoinColumns = @JoinColumn(name = "category_id")
+            inverseJoinColumns = @JoinColumn(name = "category_id"),
+            indexes = {
+                    @Index(name = "idx_book_categories_book_id", columnList = "book_id"),
+                    @Index(name = "idx_book_categories_category_id", columnList = "category_id")
+            }
     )
     @Builder.Default
     private Set<Category> categories = new LinkedHashSet<>();

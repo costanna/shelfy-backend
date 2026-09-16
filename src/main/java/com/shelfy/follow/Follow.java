@@ -8,6 +8,7 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
@@ -25,7 +26,8 @@ import java.time.Instant;
 @Entity
 @Table(
         name = "follows",
-        uniqueConstraints = @UniqueConstraint(columnNames = {"follower_id", "followed_id"})
+        uniqueConstraints = @UniqueConstraint(columnNames = {"follower_id", "followed_id"}),
+        indexes = @Index(name = "idx_follows_followed_id", columnList = "followed_id")
 )
 @EntityListeners(AuditingEntityListener.class)
 @Getter

@@ -11,7 +11,8 @@ import lombok.Setter;
 @Entity
 @Table(
         name = "categories",
-        uniqueConstraints = @UniqueConstraint(columnNames = {"name", "owner_id"})
+        uniqueConstraints = @UniqueConstraint(columnNames = {"name", "owner_id"}),
+        indexes = @Index(name = "idx_categories_owner_id", columnList = "owner_id")
 )
 @Getter
 @Setter
