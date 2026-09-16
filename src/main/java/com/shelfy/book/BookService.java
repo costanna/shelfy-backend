@@ -72,9 +72,13 @@ public class BookService {
 
         if (request.finishedAt() != null) {
             book.setStatus(BookStatus.READ);
-        } else if (request.startedAt() != null
-                && (book.getStatus() == BookStatus.WANT_TO_READ || book.getStatus() == BookStatus.WANT_TO_BUY)) {
-            book.setStatus(BookStatus.READING);
+        } else if (request.startedAt() != null) {
+            if (book.getStatus() == BookStatus.WANT_TO_READ || book.getStatus() == BookStatus.WANT_TO_BUY
+                    || book.getStatus() == BookStatus.READ) {
+                book.setStatus(BookStatus.READING);
+            }
+        } else if (book.getStatus() == BookStatus.READ || book.getStatus() == BookStatus.READING) {
+            book.setStatus(BookStatus.WANT_TO_READ);
         }
 
         return bookMapper.toResponse(book);
