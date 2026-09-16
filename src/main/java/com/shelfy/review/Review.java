@@ -15,7 +15,10 @@ import java.math.BigDecimal;
 import java.time.Instant;
 
 @Entity
-@Table(name = "reviews")
+@Table(name = "reviews", indexes = {
+        @Index(name = "idx_reviews_book_id", columnList = "book_id"),
+        @Index(name = "idx_reviews_user_id", columnList = "user_id")
+})
 @EntityListeners(AuditingEntityListener.class)
 @Getter
 @Setter
