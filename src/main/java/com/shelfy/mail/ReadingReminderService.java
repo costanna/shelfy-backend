@@ -27,6 +27,7 @@ public class ReadingReminderService {
     private final EmailService emailService;
 
     @Scheduled(cron = "0 0 9 * * *")
+    @Transactional
     public void sendStaleReadingReminders() {
         int sent = remindStaleReaders();
         log.info("Recordatorios de lectura: {} correos generados", sent);
