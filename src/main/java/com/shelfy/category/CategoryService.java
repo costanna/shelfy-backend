@@ -4,6 +4,7 @@ import com.shelfy.category.dto.CategoryRequest;
 import com.shelfy.category.dto.CategoryResponse;
 import com.shelfy.common.exception.DuplicateResourceException;
 import com.shelfy.common.exception.ResourceNotFoundException;
+import com.shelfy.user.User;
 import com.shelfy.user.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -16,6 +17,11 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class CategoryService {
 
+    private static final List<String> DEFAULT_CATEGORY_NAMES = List.of(
+            "Ficción", "No ficción", "Fantasía", "Ciencia ficción",
+            "Misterio y thriller", "Romance", "Biografía", "Poesía"
+    );
+
     private final CategoryRepository categoryRepository;
     private final CategoryMapper categoryMapper;
     private final UserService userService;
@@ -25,6 +31,14 @@ public class CategoryService {
         return categoryRepository.findByOwnerIdOrderByNameAsc(ownerId).stream()
                 .map(categoryMapper::toResponse)
                 .toList();
+    }
+
+    @Transactional
+    public void seedDefaults(User owner) {
+        List<Category> defaults = DEFAULT_CATEGORY_NAMES.stream()
+                .map(name -> Category.builder().name(name).owner(owner).build())
+                .toList();
+        categoryRepository.saveAll(defaults);
     }
 
     @Transactional

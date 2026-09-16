@@ -144,6 +144,11 @@ El token se obtiene en `register` o `login` y caduca a las 24 h.
 verificar el email primero (enlace válido 24 h). El token de `forgot-password` caduca en 1 h y
 solo sirve una vez.
 
+Cada cuenta nueva se crea con 8 categorías por defecto (Ficción, No ficción, Fantasía, Ciencia
+ficción, Misterio y thriller, Romance, Biografía, Poesía) — `CategoryService.seedDefaults()`, para
+no empezar con la sección de Categorías completamente vacía. Son categorías normales: se pueden
+renombrar o borrar como cualquier otra, no están protegidas.
+
 **Usuario**
 
 | Método | Ruta | Cuerpo | Respuesta |

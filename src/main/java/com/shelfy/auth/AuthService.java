@@ -5,6 +5,7 @@ import com.shelfy.auth.dto.EmailRequest;
 import com.shelfy.auth.dto.LoginRequest;
 import com.shelfy.auth.dto.RegisterRequest;
 import com.shelfy.auth.dto.ResetPasswordRequest;
+import com.shelfy.category.CategoryService;
 import com.shelfy.common.dto.MessageResponse;
 import com.shelfy.common.exception.DuplicateResourceException;
 import com.shelfy.common.exception.EmailNotVerifiedException;
@@ -46,6 +47,7 @@ public class AuthService {
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
     private final EmailService emailService;
+    private final CategoryService categoryService;
 
     @Value("${shelfy.registration.require-email-verification}")
     private boolean requireEmailVerification;
@@ -68,11 +70,13 @@ public class AuthService {
                     .verificationTokenExpiresAt(Instant.now().plus(VERIFICATION_TOKEN_TTL));
 
             User user = userRepository.save(builder.build());
+            categoryService.seedDefaults(user);
             emailService.sendVerificationEmail(user.getEmail(), user.getName(), token);
             return new MessageResponse("Te hemos enviado un email para verificar tu cuenta.");
         }
 
-        userRepository.save(builder.build());
+        User user = userRepository.save(builder.build());
+        categoryService.seedDefaults(user);
         return new MessageResponse("Cuenta creada. Ya puedes iniciar sesión.");
     }
 
