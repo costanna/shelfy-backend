@@ -1,5 +1,6 @@
 package com.shelfy.common.exception;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -12,6 +13,7 @@ import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import java.util.HashMap;
 import java.util.Map;
 
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -68,6 +70,12 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ResponseEntity<ApiError> handleMaxUploadSize(MaxUploadSizeExceededException ex) {
         return build(HttpStatus.BAD_REQUEST, "La imagen no puede superar los 5 MB");
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ApiError> handleUnexpected(Exception ex) {
+        log.error("Error no controlado", ex);
+        return build(HttpStatus.INTERNAL_SERVER_ERROR, "Algo ha salido mal. Inténtalo de nuevo más tarde.");
     }
 
     private ResponseEntity<ApiError> build(HttpStatus status, String message) {
