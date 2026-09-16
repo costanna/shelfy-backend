@@ -70,17 +70,17 @@ public class AuthService {
                     .verificationTokenExpiresAt(Instant.now().plus(VERIFICATION_TOKEN_TTL));
 
             User user = userRepository.save(builder.build());
-            categoryService.seedDefaults(user);
+            categoryService.seedMissingDefaults(user);
             emailService.sendVerificationEmail(user.getEmail(), user.getName(), token);
             return new MessageResponse("Te hemos enviado un email para verificar tu cuenta.");
         }
 
         User user = userRepository.save(builder.build());
-        categoryService.seedDefaults(user);
+        categoryService.seedMissingDefaults(user);
         return new MessageResponse("Cuenta creada. Ya puedes iniciar sesión.");
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public AuthResponse login(LoginRequest request) {
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(request.email(), request.password()));
@@ -91,6 +91,8 @@ public class AuthService {
         if (requireEmailVerification && !user.isEmailVerified()) {
             throw new EmailNotVerifiedException();
         }
+
+        categoryService.seedMissingDefaults(user);
 
         return buildResponse(user);
     }

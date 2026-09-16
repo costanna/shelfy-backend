@@ -34,11 +34,26 @@ public class CategoryService {
     }
 
     @Transactional
-    public void seedDefaults(User owner) {
-        List<Category> defaults = DEFAULT_CATEGORY_NAMES.stream()
+    public int seedMissingDefaults(User owner) {
+        List<String> existingNames = categoryRepository.findByOwnerIdOrderByNameAsc(owner.getId()).stream()
+                .map(category -> category.getName().toLowerCase())
+                .toList();
+
+        List<Category> missing = DEFAULT_CATEGORY_NAMES.stream()
+                .filter(name -> !existingNames.contains(name.toLowerCase()))
                 .map(name -> Category.builder().name(name).owner(owner).build())
                 .toList();
-        categoryRepository.saveAll(defaults);
+
+        if (!missing.isEmpty()) {
+            categoryRepository.saveAll(missing);
+        }
+        return missing.size();
+    }
+
+    @Transactional
+    public List<CategoryResponse> seedMissingDefaults(Long ownerId) {
+        seedMissingDefaults(userService.getEntity(ownerId));
+        return listOwnedBy(ownerId);
     }
 
     @Transactional

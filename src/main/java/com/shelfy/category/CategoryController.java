@@ -23,6 +23,11 @@ public class CategoryController {
         return categoryService.listOwnedBy(principal.getId());
     }
 
+    @PostMapping("/seed-defaults")
+    public List<CategoryResponse> seedDefaults(@AuthenticationPrincipal UserPrincipal principal) {
+        return categoryService.seedMissingDefaults(principal.getId());
+    }
+
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public CategoryResponse create(@AuthenticationPrincipal UserPrincipal principal,
