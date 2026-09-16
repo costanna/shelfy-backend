@@ -5,6 +5,7 @@ import com.shelfy.user.ThemePreference;
 
 public record UpdatePreferencesRequest(
         ThemePreference themePreference,
-        LanguagePreference languagePreference
+        LanguagePreference languagePreference,
+        Boolean remindersEnabled
 ) {
 }

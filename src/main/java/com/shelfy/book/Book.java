@@ -59,6 +59,9 @@ public class Book {
     @Column(name = "finished_at")
     private LocalDate finishedAt;
 
+    @Column(name = "reminder_sent_at")
+    private Instant reminderSentAt;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "owner_id", nullable = false)
     private User owner;
