@@ -3,6 +3,7 @@ package com.shelfy.user;
 import com.shelfy.common.dto.PageResponse;
 import com.shelfy.follow.dto.UserSummaryResponse;
 import com.shelfy.security.UserPrincipal;
+import com.shelfy.user.dto.DeleteAccountRequest;
 import com.shelfy.user.dto.UpdateAliasRequest;
 import com.shelfy.user.dto.UpdatePreferencesRequest;
 import com.shelfy.user.dto.UserProfileResponse;
@@ -12,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.CacheControl;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -28,6 +30,7 @@ public class UserController {
     private final UserService userService;
     private final UserProfileService userProfileService;
     private final AvatarService avatarService;
+    private final AccountService accountService;
 
     @GetMapping("/me")
     public UserResponse me(@AuthenticationPrincipal UserPrincipal principal) {
@@ -79,5 +82,12 @@ public class UserController {
                 .contentType(MediaType.IMAGE_JPEG)
                 .cacheControl(CacheControl.maxAge(Duration.ofDays(365)).cachePublic())
                 .body(avatar.getImageData());
+    }
+
+    @DeleteMapping("/me")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteAccount(@AuthenticationPrincipal UserPrincipal principal,
+                              @Valid @RequestBody DeleteAccountRequest request) {
+        accountService.deleteAccount(principal.getId(), request);
     }
 }
