@@ -67,4 +67,16 @@ public class User {
 
     @Column(unique = true, length = 24)
     private String alias;
+
+    /**
+     * Copia de la fecha de actualización del {@link Avatar} asociado (que
+     * vive en su propia tabla). Se duplica aquí para poder incluirla en
+     * cualquier respuesta que ya carga un {@code User} (perfil propio,
+     * búsqueda, perfil público) sin una consulta extra a
+     * {@code user_avatars} por cada usuario listado; el frontend la usa
+     * solo como parámetro de caché en la URL de la imagen. {@code null}
+     * significa "sin avatar".
+     */
+    @Column(name = "avatar_updated_at")
+    private Instant avatarUpdatedAt;
 }

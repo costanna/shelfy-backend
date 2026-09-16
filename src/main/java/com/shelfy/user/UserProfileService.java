@@ -42,6 +42,7 @@ public class UserProfileService {
                 target.getId(),
                 target.getAlias(),
                 target.getName(),
+                target.getAvatarUpdatedAt(),
                 followService.followersCount(targetUserId),
                 followService.followingCount(targetUserId),
                 followedByMe,
