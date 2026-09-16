@@ -78,6 +78,16 @@ public class CategoryService {
         return categoryRepository.findByIdInAndOwnerId(ids, ownerId);
     }
 
+    @Transactional
+    public Category getOrCreate(Long ownerId, String name) {
+        String trimmed = name.trim();
+        return categoryRepository.findByNameIgnoreCaseAndOwnerId(trimmed, ownerId)
+                .orElseGet(() -> categoryRepository.save(Category.builder()
+                        .name(trimmed)
+                        .owner(userService.getEntity(ownerId))
+                        .build()));
+    }
+
     private Category findOwned(Long ownerId, Long id) {
         return categoryRepository.findByIdAndOwnerId(id, ownerId)
                 .orElseThrow(() -> new ResourceNotFoundException("Categoría", id));
