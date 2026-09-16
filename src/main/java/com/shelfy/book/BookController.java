@@ -1,5 +1,6 @@
 package com.shelfy.book;
 
+import com.shelfy.book.dto.BookImportResult;
 import com.shelfy.book.dto.BookRequest;
 import com.shelfy.book.dto.BookResponse;
 import com.shelfy.book.dto.UpdateReadingDatesRequest;
@@ -10,9 +11,16 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.nio.charset.StandardCharsets;
 
 @RestController
 @RequestMapping("/api/books")
@@ -20,6 +28,7 @@ import org.springframework.web.bind.annotation.*;
 public class BookController {
 
     private final BookService bookService;
+    private final BookCsvService bookCsvService;
 
     @GetMapping
     public PageResponse<BookResponse> list(
@@ -64,5 +73,22 @@ public class BookController {
                                            @PathVariable Long id,
                                            @Valid @RequestBody UpdateReadingDatesRequest request) {
         return bookService.updateReadingDates(principal.getId(), id, request);
+    }
+
+    @GetMapping("/export")
+    public ResponseEntity<byte[]> export(@AuthenticationPrincipal UserPrincipal principal) {
+        byte[] body = bookCsvService.export(principal.getId()).getBytes(StandardCharsets.UTF_8);
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType("text/csv; charset=UTF-8"))
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        ContentDisposition.attachment().filename("shelfy-biblioteca.csv").build().toString())
+                .body(body);
+    }
+
+    @PostMapping(value = "/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public BookImportResult importCsv(@AuthenticationPrincipal UserPrincipal principal,
+                                      @RequestParam("file") MultipartFile file) {
+        return bookCsvService.importCsv(principal.getId(), file);
     }
 }
