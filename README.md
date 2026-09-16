@@ -205,7 +205,12 @@ en título/autor), `page`/`size` (paginación, 12 por defecto), `sort` (por defe
 
 `PATCH /api/books/{id}/reading-dates` existe aparte de `PUT` para poder cambiar (o borrar, mandando
 ambas a `null`) solo el rango de lectura desde Estadísticas sin tener que reenviar el resto del
-libro — mismo criterio de fechas que `BookRequest`.
+libro — mismo criterio de fechas que `BookRequest`. Como esta ruta no pide el estado (a diferencia
+del formulario completo), lo infiere de las fechas: mandar `finishedAt` pone el libro en `READ`, y
+mandar solo `startedAt` (sin `finishedAt`) lo pone en `READING` si estaba en `WANT_TO_READ` o
+`WANT_TO_BUY`. Nunca lo degrada — borrar `finishedAt` de un libro ya `READ` no lo vuelve a
+`READING`. Sin esto, poner solo la fecha sin tocar el estado dejaba el libro fuera de "Libros
+terminados por mes" en Estadísticas aunque sí tuviera `finishedAt`.
 
 **Estadísticas de lectura**
 
