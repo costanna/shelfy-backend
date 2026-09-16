@@ -58,6 +58,17 @@ public class BookService {
         return bookMapper.toResponse(book);
     }
 
+    /**
+     * Este endpoint no pide el estado del libro (a diferencia de
+     * {@link #update}, donde el formulario completo sí lo muestra), así
+     * que infiere el que tiene más sentido a partir de las fechas: poner
+     * fecha de fin implica que ya está leído (si no, "Libros terminados
+     * por mes" de Estadísticas se queda vacío aunque el libro sí tenga
+     * fecha — justo lo que pasaba antes de este cambio), y poner solo
+     * fecha de inicio implica que se está leyendo ahora. Nunca degrada un
+     * estado ya alcanzado (p. ej. borrar la fecha de fin de un libro
+     * "Leído" no lo vuelve a poner en "Leyendo").
+     */
     @Transactional
     public BookResponse updateReadingDates(Long ownerId, Long id, UpdateReadingDatesRequest request) {
         Book book = findOwned(ownerId, id);
@@ -69,6 +80,14 @@ public class BookService {
 
         book.setStartedAt(request.startedAt());
         book.setFinishedAt(request.finishedAt());
+
+        if (request.finishedAt() != null) {
+            book.setStatus(BookStatus.READ);
+        } else if (request.startedAt() != null
+                && (book.getStatus() == BookStatus.WANT_TO_READ || book.getStatus() == BookStatus.WANT_TO_BUY)) {
+            book.setStatus(BookStatus.READING);
+        }
+
         return bookMapper.toResponse(book);
     }
 
