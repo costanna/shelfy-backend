@@ -18,13 +18,6 @@ import java.io.UncheckedIOException;
 import java.time.Instant;
 import java.util.Set;
 
-/**
- * Recorta a cuadrado (centrado) y redimensiona cualquier imagen subida a
- * {@value #TARGET_SIZE}x{@value #TARGET_SIZE} px en JPEG antes de
- * guardarla: así el tamaño en base de datos es predecible (unas pocas
- * decenas de KB) sin depender de lo que suba cada usuario, y el frontend
- * siempre recibe algo ya recortado en cuadrado, listo para un círculo.
- */
 @Service
 @RequiredArgsConstructor
 public class AvatarService {

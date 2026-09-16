@@ -20,12 +20,6 @@ public class NoProfanityValidator implements ConstraintValidator<NoProfanity, St
         return ProfanityWordList.WORDS.stream().noneMatch(normalized::contains);
     }
 
-    /**
-     * Compara por subcadena tras pasar a minúsculas y quitar acentos, así que
-     * puede dar algún falso positivo con palabras legítimas que contengan una
-     * de la lista (p. ej. nombres propios) — asumible en un filtro de este
-     * tamaño; el usuario siempre puede elegir otro alias.
-     */
     private String normalize(String value) {
         String lower = value.toLowerCase(Locale.ROOT);
         String withoutDiacritics = Normalizer.normalize(lower, Normalizer.Form.NFD);

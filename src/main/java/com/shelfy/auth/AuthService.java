@@ -47,14 +47,6 @@ public class AuthService {
     private final AuthenticationManager authenticationManager;
     private final EmailService emailService;
 
-    /**
-     * Interruptor de emergencia: si el proveedor de correo no está
-     * funcionando, se puede poner a false (REQUIRE_EMAIL_VERIFICATION=false)
-     * para que las cuentas nazcan ya verificadas y el login no dependa del
-     * email. La recuperación de contraseña no se ve afectada por esto — ya
-     * es opcional de por sí, y su envío nunca rompe la petición gracias a
-     * EmailService.
-     */
     @Value("${shelfy.registration.require-email-verification}")
     private boolean requireEmailVerification;
 

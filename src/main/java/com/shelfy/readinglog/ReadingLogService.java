@@ -32,12 +32,6 @@ public class ReadingLogService {
     private final BookRepository bookRepository;
     private final UserRepository userRepository;
 
-    /**
-     * Idempotente a propósito: el calendario del frontend llama a esto al
-     * pulsar un libro en el selector de un día, sin comprobar antes si ya
-     * estaba marcado — más simple que tener que sincronizar estado local
-     * con un 409. Si ya existía, no hace nada.
-     */
     @Transactional
     public void mark(Long ownerId, MarkReadingDayRequest request) {
         if (readingLogRepository.findByOwnerIdAndBookIdAndDate(ownerId, request.bookId(), request.date()).isPresent()) {
@@ -86,11 +80,6 @@ public class ReadingLogService {
         return new ReadingCalendarResponse(year, month, days);
     }
 
-    /**
-     * Todo el historial agrupado por libro, para la lista de gestión
-     * ("mis días marcados") desde donde se puede eliminar un día suelto sin
-     * tener que localizarlo en el calendario mes a mes.
-     */
     @Transactional(readOnly = true)
     public List<ReadingLogBookSummaryResponse> summary(Long ownerId) {
         List<ReadingLog> logs = readingLogRepository.findAllWithBookByOwnerId(ownerId);
@@ -116,11 +105,6 @@ public class ReadingLogService {
         return new ReadingStreakResponse(currentStreak(datesDesc), longestStreak(datesDesc));
     }
 
-    /**
-     * La racha sigue "viva" mientras el último día marcado sea hoy o ayer
-     * (para no penalizar a quien aún no ha marcado el día de hoy): si el
-     * hueco es de dos días o más, la racha está rota y vale 0.
-     */
     private int currentStreak(List<LocalDate> datesDesc) {
         if (datesDesc.isEmpty()) {
             return 0;
