@@ -152,12 +152,13 @@ public class AuthService {
         user.setPassword(passwordEncoder.encode(request.newPassword()));
         user.setPasswordResetToken(null);
         user.setPasswordResetTokenExpiresAt(null);
+        user.setTokenVersion(user.getTokenVersion() + 1);
 
         return new MessageResponse("Contraseña actualizada. Ya puedes iniciar sesión.");
     }
 
     private AuthResponse buildResponse(User user) {
-        String token = jwtService.generateToken(user.getId(), user.getEmail());
+        String token = jwtService.generateToken(user.getId(), user.getEmail(), user.getTokenVersion());
         return AuthResponse.of(token, jwtService.getExpirationMillis(), userMapper.toResponse(user));
     }
 }

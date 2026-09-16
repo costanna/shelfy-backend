@@ -26,11 +26,12 @@ public class JwtService {
         this.expirationMillis = expirationMillis;
     }
 
-    public String generateToken(Long userId, String email) {
+    public String generateToken(Long userId, String email, int tokenVersion) {
         Date now = new Date();
         return Jwts.builder()
                 .subject(String.valueOf(userId))
                 .claim("email", email)
+                .claim("tv", tokenVersion)
                 .issuedAt(now)
                 .expiration(new Date(now.getTime() + expirationMillis))
                 .signWith(key)
@@ -39,6 +40,11 @@ public class JwtService {
 
     public Long extractUserId(String token) {
         return Long.valueOf(parse(token).getSubject());
+    }
+
+    public int extractTokenVersion(String token) {
+        Object tv = parse(token).get("tv");
+        return tv == null ? 0 : ((Number) tv).intValue();
     }
 
     public long getExpirationMillis() {
