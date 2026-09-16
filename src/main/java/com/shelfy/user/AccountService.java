@@ -10,7 +10,6 @@ import com.shelfy.readinglog.ReadingLogRepository;
 import com.shelfy.review.ReviewRepository;
 import com.shelfy.user.dto.DeleteAccountRequest;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,7 +37,7 @@ public class AccountService {
                 .orElseThrow(() -> new ResourceNotFoundException("Usuario", userId));
 
         if (!passwordEncoder.matches(request.password(), user.getPassword())) {
-            throw new BadCredentialsException("Contraseña incorrecta");
+            throw new IllegalArgumentException("Contraseña incorrecta");
         }
 
         readingLogRepository.deleteAll(readingLogRepository.findByOwnerId(userId));
