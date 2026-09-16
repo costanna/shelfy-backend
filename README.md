@@ -216,6 +216,29 @@ en título/autor), `page`/`size` (paginación, 12 por defecto), `sort` (por defe
 reciente a más antiguo. Solo cuenta libros `READ` con `finishedAt`; uno sin esa fecha no se puede
 atribuir a ningún mes.
 
+**Calendario de lectura**
+
+| Método | Ruta | Cuerpo | Respuesta |
+|---|---|---|---|
+| `GET` | `/api/reading-log?year=&month=` | — | `{ year, month, days }` — solo los días con algo marcado |
+| `GET` | `/api/reading-log/streak` | — | `{ currentStreak, longestStreak }` |
+| `POST` | `/api/reading-log` | `{ bookId, date }` | `204`. Idempotente: si ese libro ya estaba marcado ese día, no hace nada |
+| `DELETE` | `/api/reading-log?bookId=&date=` | — | `204` (idempotente) |
+
+Independiente de `startedAt`/`finishedAt` del libro (que siguen siendo el rango "oficial" del
+detalle): esto es un registro día a día, pensado para el calendario interactivo de Estadísticas —
+un mismo día puede tener varios libros marcados (leer más de uno en paralelo), y un libro puede
+tener marcados días sueltos sin relación con su rango de lectura declarado.
+
+`days` trae, para cada día con al menos un libro marcado, `{ date, books: [{ id, title, coverUrl }] }`.
+`date` de `POST`/`DELETE` no puede ser futuro (`400` si lo es). Marcar un libro que no es tuyo
+devuelve `404`, no `403` (mismo criterio que el resto de la API).
+
+`currentStreak`/`longestStreak` se calculan sobre todo el historial, no solo el mes que se esté
+viendo — la racha actual cuenta días consecutivos terminando hoy, pero sigue "viva" si el último
+día marcado fue ayer (para no penalizar a quien aún no ha marcado el día de hoy); dos días sin
+marcar nada la rompe.
+
 **Seguir a otros usuarios**
 
 | Método | Ruta | Cuerpo | Respuesta |
