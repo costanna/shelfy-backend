@@ -177,6 +177,7 @@ solo sirve una vez.
 | `POST` | `/api/books` | `BookRequest` | `201` + libro |
 | `PUT` | `/api/books/{id}` | `BookRequest` | Libro actualizado |
 | `DELETE` | `/api/books/{id}` | — | `204` |
+| `PATCH` | `/api/books/{id}/reading-dates` | `{ startedAt?, finishedAt? }` | Libro actualizado |
 
 Filtros de `GET /api/books` (opcionales y combinables): `status`, `categoryId`, `q` (texto libre
 en título/autor), `page`/`size` (paginación, 12 por defecto), `sort` (por defecto
@@ -202,6 +203,10 @@ en título/autor), `page`/`size` (paginación, 12 por defecto), `sort` (por defe
 `ISO-8601` (`AAAA-MM-DD`), opcionales; si se envían ambas, `finishedAt` no puede ser anterior a
 `startedAt` (`400` si lo es).
 
+`PATCH /api/books/{id}/reading-dates` existe aparte de `PUT` para poder cambiar (o borrar, mandando
+ambas a `null`) solo el rango de lectura desde Estadísticas sin tener que reenviar el resto del
+libro — mismo criterio de fechas que `BookRequest`.
+
 **Estadísticas de lectura**
 
 | Método | Ruta | Cuerpo | Respuesta |
@@ -222,6 +227,7 @@ atribuir a ningún mes.
 |---|---|---|---|
 | `GET` | `/api/reading-log?year=&month=` | — | `{ year, month, days }` — solo los días con algo marcado |
 | `GET` | `/api/reading-log/streak` | — | `{ currentStreak, longestStreak }` |
+| `GET` | `/api/reading-log/summary` | — | Todo el historial agrupado por libro: `[{ bookId, title, dates }]` |
 | `POST` | `/api/reading-log` | `{ bookId, date }` | `204`. Idempotente: si ese libro ya estaba marcado ese día, no hace nada |
 | `DELETE` | `/api/reading-log?bookId=&date=` | — | `204` (idempotente) |
 

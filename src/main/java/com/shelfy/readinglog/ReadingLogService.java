@@ -7,6 +7,7 @@ import com.shelfy.readinglog.dto.MarkReadingDayRequest;
 import com.shelfy.readinglog.dto.ReadingCalendarResponse;
 import com.shelfy.readinglog.dto.ReadingDayResponse;
 import com.shelfy.readinglog.dto.ReadingLogBookResponse;
+import com.shelfy.readinglog.dto.ReadingLogBookSummaryResponse;
 import com.shelfy.readinglog.dto.ReadingStreakResponse;
 import com.shelfy.user.User;
 import com.shelfy.user.UserRepository;
@@ -16,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -82,6 +84,30 @@ public class ReadingLogService {
                 .toList();
 
         return new ReadingCalendarResponse(year, month, days);
+    }
+
+    /**
+     * Todo el historial agrupado por libro, para la lista de gestión
+     * ("mis días marcados") desde donde se puede eliminar un día suelto sin
+     * tener que localizarlo en el calendario mes a mes.
+     */
+    @Transactional(readOnly = true)
+    public List<ReadingLogBookSummaryResponse> summary(Long ownerId) {
+        List<ReadingLog> logs = readingLogRepository.findAllWithBookByOwnerId(ownerId);
+
+        Map<Long, String> titleByBookId = new LinkedHashMap<>();
+        Map<Long, List<LocalDate>> datesByBookId = new LinkedHashMap<>();
+        for (ReadingLog log : logs) {
+            Long bookId = log.getBook().getId();
+            titleByBookId.putIfAbsent(bookId, log.getBook().getTitle());
+            datesByBookId.computeIfAbsent(bookId, key -> new ArrayList<>()).add(log.getDate());
+        }
+
+        return titleByBookId.entrySet().stream()
+                .map(entry -> new ReadingLogBookSummaryResponse(
+                        entry.getKey(), entry.getValue(), datesByBookId.get(entry.getKey())))
+                .sorted(Comparator.comparing(summary -> summary.title().toLowerCase()))
+                .toList();
     }
 
     @Transactional(readOnly = true)

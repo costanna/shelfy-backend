@@ -2,6 +2,7 @@ package com.shelfy.readinglog;
 
 import com.shelfy.readinglog.dto.MarkReadingDayRequest;
 import com.shelfy.readinglog.dto.ReadingCalendarResponse;
+import com.shelfy.readinglog.dto.ReadingLogBookSummaryResponse;
 import com.shelfy.readinglog.dto.ReadingStreakResponse;
 import com.shelfy.security.UserPrincipal;
 import jakarta.validation.Valid;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/reading-log")
@@ -37,6 +39,11 @@ public class ReadingLogController {
     @GetMapping("/streak")
     public ReadingStreakResponse streak(@AuthenticationPrincipal UserPrincipal principal) {
         return readingLogService.streak(principal.getId());
+    }
+
+    @GetMapping("/summary")
+    public List<ReadingLogBookSummaryResponse> summary(@AuthenticationPrincipal UserPrincipal principal) {
+        return readingLogService.summary(principal.getId());
     }
 
     @PostMapping
