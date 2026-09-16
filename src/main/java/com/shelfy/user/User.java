@@ -63,4 +63,9 @@ public class User {
 
     @Column(name = "avatar_updated_at")
     private Instant avatarUpdatedAt;
+
+    @Column(name = "token_version", nullable = false)
+    @ColumnDefault("0")
+    @Builder.Default
+    private int tokenVersion = 0;
 }

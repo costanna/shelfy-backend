@@ -15,15 +15,17 @@ public class UserPrincipal implements UserDetails {
     private final Long id;
     private final String email;
     private final String password;
+    private final int tokenVersion;
 
-    public UserPrincipal(Long id, String email, String password) {
+    public UserPrincipal(Long id, String email, String password, int tokenVersion) {
         this.id = id;
         this.email = email;
         this.password = password;
+        this.tokenVersion = tokenVersion;
     }
 
     public static UserPrincipal from(User user) {
-        return new UserPrincipal(user.getId(), user.getEmail(), user.getPassword());
+        return new UserPrincipal(user.getId(), user.getEmail(), user.getPassword(), user.getTokenVersion());
     }
 
     @Override

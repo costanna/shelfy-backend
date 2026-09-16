@@ -1,5 +1,6 @@
 package com.shelfy.security;
 
+import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -9,7 +10,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -35,7 +35,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         if (token != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             try {
-                UserDetails user = userDetailsService.loadUserById(jwtService.extractUserId(token));
+                UserPrincipal user = (UserPrincipal) userDetailsService.loadUserById(jwtService.extractUserId(token));
+
+                if (isRevoked(user, token)) {
+                    throw new JwtException("Token emitido antes del último cambio de contraseña");
+                }
 
                 var authentication = new UsernamePasswordAuthenticationToken(
                         user, null, user.getAuthorities());
@@ -49,6 +53,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private boolean isRevoked(UserPrincipal user, String token) {
+        return jwtService.extractTokenVersion(token) != user.getTokenVersion();
     }
 
     private String extractToken(HttpServletRequest request) {
