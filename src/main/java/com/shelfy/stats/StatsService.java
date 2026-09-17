@@ -31,6 +31,10 @@ public class StatsService {
                 .filter(book -> book.getStatus() == BookStatus.READ)
                 .count();
 
+        long currentlyReading = books.stream()
+                .filter(book -> book.getStatus() == BookStatus.READING)
+                .count();
+
         List<BookReadingDuration> readingDurations = books.stream()
                 .filter(book -> book.getStartedAt() != null && book.getFinishedAt() != null)
                 .map(this::toDuration)
@@ -39,7 +43,7 @@ public class StatsService {
 
         List<MonthlyReadCount> booksByMonth = booksByMonth(books);
 
-        return new ReadingStatsResponse(totalBooksRead, books.size(), readingDurations, booksByMonth);
+        return new ReadingStatsResponse(totalBooksRead, books.size(), currentlyReading, readingDurations, booksByMonth);
     }
 
     private List<MonthlyReadCount> booksByMonth(List<Book> books) {
