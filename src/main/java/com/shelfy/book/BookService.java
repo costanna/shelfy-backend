@@ -114,6 +114,9 @@ public class BookService {
         book.setIsbn(request.isbn());
         book.setSynopsis(request.synopsis());
         book.setPageCount(request.pageCount());
+        book.setSeries(request.series());
+        book.setSeriesPosition(request.seriesPosition());
+        book.setFormat(request.format());
         book.setStatus(request.status());
         book.setStartedAt(request.startedAt());
         book.setFinishedAt(request.finishedAt());

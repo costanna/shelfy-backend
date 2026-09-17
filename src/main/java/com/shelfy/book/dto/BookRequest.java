@@ -1,5 +1,6 @@
 package com.shelfy.book.dto;
 
+import com.shelfy.book.BookFormat;
 import com.shelfy.book.BookStatus;
 import com.shelfy.book.validation.ValidDateRange;
 import jakarta.validation.constraints.Min;
@@ -30,6 +31,14 @@ public record BookRequest(
 
         @Min(value = 1, message = "El número de páginas debe ser mayor que 0")
         Integer pageCount,
+
+        @Size(max = 255, message = "El nombre de la saga no puede superar los 255 caracteres")
+        String series,
+
+        @Min(value = 1, message = "El número dentro de la saga debe ser mayor que 0")
+        Integer seriesPosition,
+
+        BookFormat format,
 
         @NotNull(message = "El estado es obligatorio")
         BookStatus status,

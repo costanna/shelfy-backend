@@ -25,7 +25,8 @@ import java.util.Set;
 public class BookCsvService {
 
     private static final List<String> HEADER = List.of(
-            "title", "author", "isbn", "status", "pageCount", "startedAt", "finishedAt", "categories", "synopsis"
+            "title", "author", "isbn", "status", "pageCount", "series", "seriesPosition", "format",
+            "startedAt", "finishedAt", "categories", "synopsis"
     );
 
     private final BookRepository bookRepository;
@@ -51,6 +52,9 @@ public class BookCsvService {
                     nullToEmpty(book.getIsbn()),
                     book.getStatus().name(),
                     book.getPageCount() != null ? book.getPageCount().toString() : "",
+                    nullToEmpty(book.getSeries()),
+                    book.getSeriesPosition() != null ? book.getSeriesPosition().toString() : "",
+                    book.getFormat() != null ? book.getFormat().name() : "",
                     book.getStartedAt() != null ? book.getStartedAt().toString() : "",
                     book.getFinishedAt() != null ? book.getFinishedAt().toString() : "",
                     categories,
@@ -83,6 +87,9 @@ public class BookCsvService {
         int isbnIdx = header.indexOf("isbn");
         int statusIdx = header.indexOf("status");
         int pageCountIdx = header.indexOf("pagecount");
+        int seriesIdx = header.indexOf("series");
+        int seriesPositionIdx = header.indexOf("seriesposition");
+        int formatIdx = header.indexOf("format");
         int startedAtIdx = header.indexOf("startedat");
         int finishedAtIdx = header.indexOf("finishedat");
         int categoriesIdx = header.indexOf("categories");
@@ -113,6 +120,9 @@ public class BookCsvService {
 
             book.setStatus(parseStatus(value(row, statusIdx)));
             book.setPageCount(parseInt(value(row, pageCountIdx)));
+            book.setSeries(blankToNull(value(row, seriesIdx)));
+            book.setSeriesPosition(parseInt(value(row, seriesPositionIdx)));
+            book.setFormat(parseFormat(value(row, formatIdx)));
 
             LocalDate startedAt = parseDate(value(row, startedAtIdx));
             LocalDate finishedAt = parseDate(value(row, finishedAtIdx));
@@ -153,6 +163,17 @@ public class BookCsvService {
             return BookStatus.valueOf(raw.trim().toUpperCase(Locale.ROOT).replace(' ', '_'));
         } catch (IllegalArgumentException ex) {
             return BookStatus.WANT_TO_READ;
+        }
+    }
+
+    private BookFormat parseFormat(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        try {
+            return BookFormat.valueOf(raw.trim().toUpperCase(Locale.ROOT).replace(' ', '_'));
+        } catch (IllegalArgumentException ex) {
+            return null;
         }
     }
 

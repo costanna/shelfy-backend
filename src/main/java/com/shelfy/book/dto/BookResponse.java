@@ -1,5 +1,6 @@
 package com.shelfy.book.dto;
 
+import com.shelfy.book.BookFormat;
 import com.shelfy.book.BookStatus;
 import com.shelfy.category.dto.CategoryResponse;
 
@@ -15,6 +16,9 @@ public record BookResponse(
         String isbn,
         String synopsis,
         Integer pageCount,
+        String series,
+        Integer seriesPosition,
+        BookFormat format,
         BookStatus status,
         LocalDate startedAt,
         LocalDate finishedAt,

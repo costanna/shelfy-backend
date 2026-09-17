@@ -48,6 +48,15 @@ public class Book {
     @Column(name = "page_count")
     private Integer pageCount;
 
+    private String series;
+
+    @Column(name = "series_position")
+    private Integer seriesPosition;
+
+    @Enumerated(EnumType.STRING)
+    @Column(length = 20)
+    private BookFormat format;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     @Builder.Default
