@@ -48,6 +48,9 @@ public class Book {
     @Column(name = "page_count")
     private Integer pageCount;
 
+    @Column(name = "current_page")
+    private Integer currentPage;
+
     private String series;
 
     @Column(name = "series_position")

@@ -2,6 +2,7 @@ package com.shelfy.book;
 
 import com.shelfy.book.dto.BookRequest;
 import com.shelfy.book.dto.BookResponse;
+import com.shelfy.book.dto.UpdateProgressRequest;
 import com.shelfy.book.dto.UpdateReadingDatesRequest;
 import com.shelfy.category.CategoryService;
 import com.shelfy.common.dto.PageResponse;
@@ -94,6 +95,26 @@ public class BookService {
     }
 
     @Transactional
+    public BookResponse updateProgress(Long ownerId, Long id, UpdateProgressRequest request) {
+        Book book = findOwned(ownerId, id);
+
+        Integer currentPage = request.currentPage();
+        if (book.getPageCount() != null && currentPage > book.getPageCount()) {
+            currentPage = book.getPageCount();
+        }
+        book.setCurrentPage(currentPage);
+
+        if (book.getStatus() == BookStatus.WANT_TO_READ || book.getStatus() == BookStatus.WANT_TO_BUY) {
+            book.setStatus(BookStatus.READING);
+        }
+        if (book.getStatus() == BookStatus.READING && book.getStartedAt() == null) {
+            book.setStartedAt(LocalDate.now());
+        }
+
+        return bookMapper.toResponse(book);
+    }
+
+    @Transactional
     public void delete(Long ownerId, Long id) {
         Book book = findOwned(ownerId, id);
         reviewRepository.deleteByBookId(book.getId());
@@ -114,6 +135,7 @@ public class BookService {
         book.setIsbn(request.isbn());
         book.setSynopsis(request.synopsis());
         book.setPageCount(request.pageCount());
+        book.setCurrentPage(request.currentPage());
         book.setSeries(request.series());
         book.setSeriesPosition(request.seriesPosition());
         book.setFormat(request.format());

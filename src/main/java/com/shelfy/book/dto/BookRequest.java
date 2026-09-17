@@ -32,6 +32,9 @@ public record BookRequest(
         @Min(value = 1, message = "El número de páginas debe ser mayor que 0")
         Integer pageCount,
 
+        @Min(value = 0, message = "La página actual no puede ser negativa")
+        Integer currentPage,
+
         @Size(max = 255, message = "El nombre de la saga no puede superar los 255 caracteres")
         String series,
 

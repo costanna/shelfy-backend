@@ -3,6 +3,7 @@ package com.shelfy.book;
 import com.shelfy.book.dto.BookImportResult;
 import com.shelfy.book.dto.BookRequest;
 import com.shelfy.book.dto.BookResponse;
+import com.shelfy.book.dto.UpdateProgressRequest;
 import com.shelfy.book.dto.UpdateReadingDatesRequest;
 import com.shelfy.common.dto.PageResponse;
 import com.shelfy.security.UserPrincipal;
@@ -73,6 +74,13 @@ public class BookController {
                                            @PathVariable Long id,
                                            @Valid @RequestBody UpdateReadingDatesRequest request) {
         return bookService.updateReadingDates(principal.getId(), id, request);
+    }
+
+    @PatchMapping("/{id}/progress")
+    public BookResponse updateProgress(@AuthenticationPrincipal UserPrincipal principal,
+                                       @PathVariable Long id,
+                                       @Valid @RequestBody UpdateProgressRequest request) {
+        return bookService.updateProgress(principal.getId(), id, request);
     }
 
     @GetMapping("/export")

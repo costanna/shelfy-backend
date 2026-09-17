@@ -16,6 +16,7 @@ public record BookResponse(
         String isbn,
         String synopsis,
         Integer pageCount,
+        Integer currentPage,
         String series,
         Integer seriesPosition,
         BookFormat format,

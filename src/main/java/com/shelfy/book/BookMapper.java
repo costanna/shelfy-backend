@@ -22,6 +22,7 @@ public class BookMapper {
                 book.getIsbn(),
                 book.getSynopsis(),
                 book.getPageCount(),
+                book.getCurrentPage(),
                 book.getSeries(),
                 book.getSeriesPosition(),
                 book.getFormat(),
