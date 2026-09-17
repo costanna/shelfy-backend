@@ -74,17 +74,30 @@ public class BookService {
         }
 
         LocalDate previousStartedAt = book.getStartedAt();
+        LocalDate previousFinishedAt = book.getFinishedAt();
+        BookStatus previousStatus = book.getStatus();
+
         book.setStartedAt(request.startedAt());
         book.setFinishedAt(request.finishedAt());
 
         if (request.finishedAt() != null) {
             book.setStatus(BookStatus.READ);
         } else if (request.startedAt() != null) {
-            if (book.getStatus() == BookStatus.WANT_TO_READ || book.getStatus() == BookStatus.WANT_TO_BUY
-                    || book.getStatus() == BookStatus.READ) {
+            if (previousStatus == BookStatus.WANT_TO_READ || previousStatus == BookStatus.WANT_TO_BUY
+                    || previousStatus == BookStatus.READ) {
+                // Re-opening a finished book this way is the same move as reread(): archive its
+                // finished read first, so it doesn't vanish from "libros terminados por mes".
+                if (previousStatus == BookStatus.READ && previousFinishedAt != null) {
+                    readEventRepository.save(ReadEvent.builder()
+                            .book(book)
+                            .startedAt(previousStartedAt)
+                            .finishedAt(previousFinishedAt)
+                            .build());
+                    book.setCurrentPage(null);
+                }
                 book.setStatus(BookStatus.READING);
             }
-        } else if (book.getStatus() == BookStatus.READ || book.getStatus() == BookStatus.READING) {
+        } else if (previousStatus == BookStatus.READ || previousStatus == BookStatus.READING) {
             book.setStatus(BookStatus.WANT_TO_READ);
         }
 

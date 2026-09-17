@@ -1,6 +1,6 @@
 # 📚 Shelfy — Backend
 
-> API REST para Shelfy, una biblioteca personal: libros por estado de lectura, categorías propias y reseñas privadas, con autenticación JWT y aislamiento estricto por usuario.
+> API REST para Shelfy, una biblioteca personal: libros por estado de lectura con progreso por páginas, sagas y formato, categorías propias, reseñas y notas privadas, estadísticas, relecturas, y una capa social con feed de actividad y notificaciones — con autenticación JWT y aislamiento estricto por usuario.
 
 [![API en vivo](https://img.shields.io/badge/API-en%20vivo-brightgreen)](https://shelfy-backend-prw2.onrender.com/actuator/health)
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5-6DB33F?logo=springboot&logoColor=white)
@@ -22,12 +22,16 @@ datos: `demo@shelfy.app` / `shelfy123`).
 ## 📖 Qué expone
 
 Registro con verificación por email, login, recuperación de contraseña, CRUD de libros con
-filtros y paginación, categorías propias por usuario, reseñas anidadas en cada libro,
-estadísticas de lectura (libros terminados por mes, días que ha costado cada uno) y una capa
-social opcional: buscar a otros usuarios por alias y seguirlos para ver su estantería y sus
-reseñas — con la garantía de que nadie puede *modificar* los datos de otro usuario bajo ningún
-concepto, y de que la estantería y las reseñas de alguien solo se pueden *ver* si esa persona te
-tiene entre sus seguidores.
+filtros, ordenación y paginación, progreso de lectura por páginas, sagas y formato (físico/ebook/
+audiolibro), categorías propias por usuario, reseñas y notas anidadas en cada libro, importar/
+exportar la biblioteca en CSV, estadísticas de lectura (libros terminados por mes, días que ha
+costado cada uno, cuántos llevas leyendo ahora mismo), la posibilidad de volver a leer un libro
+ya terminado sin perder el rastro de la lectura anterior, y una capa social opcional: buscar a
+otros usuarios por alias, seguirlos para ver su estantería y sus reseñas, recibir una
+notificación cuando alguien te sigue, y un feed con lo último que ha hecho la gente que sigues —
+con la garantía de que nadie puede *modificar* los datos de otro usuario bajo ningún concepto, y
+de que la estantería, las reseñas y la actividad de alguien solo se pueden *ver* si esa persona
+te tiene entre sus seguidores.
 
 ## ✨ Puntos a destacar
 
@@ -39,7 +43,8 @@ tiene entre sus seguidores.
 - **Alias de usuario único sin bloquearse a sí mismo**: la comprobación de unicidad vive en el `Service`, no en la anotación de validación — así un usuario puede volver a guardar el alias que ya tenía sin que se rechace como "ya en uso" por chocar contra su propia fila.
 - **Visibilidad social sin duplicar datos**: no existe una "versión pública" separada de `Book`/`Review` en base de datos — `UserProfileService` reutiliza las mismas entidades y solo decide, en el momento de la petición, si rellenar `books` en la respuesta o devolverlo vacío según `own`/`followedByMe`. Además, sin alias un usuario simplemente no aparece en `/api/users/search`: no ser buscable es el valor por defecto, hay que ponerse alias para ser encontrable.
 - **Listo para producción sin cambiar código**: toda la configuración (BD, JWT, CORS) sale de variables de entorno, con valores por defecto sensatos para desarrollo local.
-- **Estadísticas calculadas al vuelo**: `/api/stats` agrupa los libros del usuario en memoria con la Stream API (por mes de `finishedAt`, por estado, etc.) en vez de mantener contadores desnormalizados — sencillo y suficientemente rápido para el tamaño real de una biblioteca personal.
+- **Estadísticas calculadas al vuelo**: `/api/stats` agrupa los libros del usuario en memoria con la Stream API (por mes de `finishedAt`, por estado, etc.) en vez de mantener contadores desnormalizados — sencillo y suficientemente rápido para el tamaño real de una biblioteca personal. El feed de actividad (`/api/feed`) sigue el mismo criterio: combina en memoria libros y reseñas recientes de la gente que sigues en vez de mantener una tabla de eventos aparte.
+- **Relecturas sin perder el historial**: `Book.startedAt`/`finishedAt` siguen siendo la lectura "actual", pero volver a leer un libro (`POST .../reread`, o reabrirlo desde Estadísticas) archiva la lectura terminada en `ReadEvent` antes de reiniciarla — así `/api/stats` puede seguir contando el mes en que lo acabaste la primera vez, y el mes en que lo vuelvas a acabar, en vez de que la segunda lectura pise a la primera.
 - **Verificación de email sin bloquear el arranque si el correo falla**: `management.health.mail.enabled=false` — por defecto, Spring Boot Actuator añade un chequeo de salud que abre una conexión SMTP real en cada `/actuator/health` en cuanto detecta `spring-boot-starter-mail` en el classpath; sin desactivarlo, un problema puntual de Gmail (o no tener credenciales en local) tumbaba el health check de *todo* el servicio, no solo el envío de correos.
 - **Cuentas existentes no se rompen al añadir la verificación**: `email_verified` se añade con `@ColumnDefault("true")`, así que Hibernate migra las cuentas que ya existían en la base de datos como verificadas; solo las cuentas nuevas nacen sin verificar.
 - **Índices explícitos en las columnas de propietario y claves foráneas** (`books.owner_id`, `categories.owner_id`, `reviews.book_id`/`user_id`, `follows.followed_id`, `book_categories.book_id`/`category_id`): PostgreSQL no las indexa solas por defecto, solo la clave primaria y las `UNIQUE` — y toda consulta de "mis libros/categorías/reseñas" filtra precisamente por una de estas columnas.
@@ -57,11 +62,16 @@ com.shelfy
 ├── auth/          registro, login, verificación de email, recuperar contraseña
 ├── user/          perfil, alias, preferencias, búsqueda de usuarios, perfil público
 ├── follow/        seguir/dejar de seguir, contadores
-├── book/          entidad, filtros, CRUD
+├── notification/  notificaciones (p. ej. nuevo seguidor)
+├── feed/          feed de actividad de la gente que sigues
+├── book/          entidad, filtros, CRUD, progreso de lectura, relecturas, CSV
 ├── category/      categorías propias del usuario
 ├── review/        reseñas anidadas en libros
+├── note/          notas privadas anidadas en libros
+├── goal/          objetivo de lectura anual
+├── readinglog/    calendario de lectura (días marcados, rachas)
 ├── stats/         estadísticas de lectura
-├── mail/          envío de emails (verificación, recuperación)
+├── mail/          envío de emails (verificación, recuperación, recordatorios)
 ├── security/      JwtService, filtro JWT, UserPrincipal
 ├── config/        seguridad, CORS y datos de ejemplo
 └── common/        errores de API y respuesta paginada
@@ -184,10 +194,15 @@ renombrar o borrar como cualquier otra, no están protegidas.
 | `PUT` | `/api/books/{id}` | `BookRequest` | Libro actualizado |
 | `DELETE` | `/api/books/{id}` | — | `204` |
 | `PATCH` | `/api/books/{id}/reading-dates` | `{ startedAt?, finishedAt? }` | Libro actualizado |
+| `PATCH` | `/api/books/{id}/progress` | `{ currentPage }` | Libro actualizado |
+| `POST` | `/api/books/{id}/reread` | — | Libro actualizado |
+| `GET` | `/api/books/export` | — | CSV de toda la biblioteca |
+| `POST` | `/api/books/import` | `multipart/form-data`, campo `file` | `BookImportResult` |
 
 Filtros de `GET /api/books` (opcionales y combinables): `status`, `categoryId`, `q` (texto libre
 en título/autor), `page`/`size` (paginación, 12 por defecto), `sort` (por defecto
-`createdAt,desc`).
+`createdAt,desc`; acepta cualquier campo propio del libro, p. ej. `title,asc` o
+`pageCount,desc`).
 
 ```json
 // BookRequest — solo title y status son obligatorios
@@ -198,6 +213,10 @@ en título/autor), `page`/`size` (paginación, 12 por defecto), `sort` (por defe
   "isbn": "9788497596909",
   "synopsis": "...",
   "pageCount": 688,
+  "currentPage": 120,
+  "series": "Dune",
+  "seriesPosition": 1,
+  "format": "PHYSICAL",
   "status": "WANT_TO_READ",
   "startedAt": "2026-01-01",
   "finishedAt": "2026-01-10",
@@ -205,32 +224,62 @@ en título/autor), `page`/`size` (paginación, 12 por defecto), `sort` (por defe
 }
 ```
 
-`status`: `WANT_TO_READ` · `READING` · `READ` · `WANT_TO_BUY`. `startedAt`/`finishedAt`: fechas
-`ISO-8601` (`AAAA-MM-DD`), opcionales; si se envían ambas, `finishedAt` no puede ser anterior a
-`startedAt` (`400` si lo es).
+`status`: `WANT_TO_READ` · `READING` · `READ` · `WANT_TO_BUY`. `format` (opcional): `PHYSICAL` ·
+`EBOOK` · `AUDIOBOOK`. `startedAt`/`finishedAt`: fechas `ISO-8601` (`AAAA-MM-DD`), opcionales; si
+se envían ambas, `finishedAt` no puede ser anterior a `startedAt` (`400` si lo es).
 
 `PATCH /api/books/{id}/reading-dates` existe aparte de `PUT` para poder cambiar (o borrar, mandando
 ambas a `null`) solo el rango de lectura desde Estadísticas sin tener que reenviar el resto del
 libro — mismo criterio de fechas que `BookRequest`. Como esta ruta no pide el estado (a diferencia
 del formulario completo), lo infiere de las fechas: mandar `finishedAt` pone el libro en `READ`, y
-mandar solo `startedAt` (sin `finishedAt`) lo pone en `READING` si estaba en `WANT_TO_READ` o
-`WANT_TO_BUY`. Nunca lo degrada — borrar `finishedAt` de un libro ya `READ` no lo vuelve a
-`READING`. Sin esto, poner solo la fecha sin tocar el estado dejaba el libro fuera de "Libros
-terminados por mes" en Estadísticas aunque sí tuviera `finishedAt`.
+mandar solo `startedAt` (sin `finishedAt`) lo pone en `READING` si estaba en `WANT_TO_READ`,
+`WANT_TO_BUY` o `READ` — en este último caso, igual que `POST .../reread` (ver abajo), archiva la
+lectura que tenía terminada antes de sobrescribirla, para no perderla de "Libros terminados por
+mes". Nunca degrada un libro `READ`: borrar `finishedAt` sin mandar `startedAt` lo deja en
+`WANT_TO_READ`, no en `READING`. Sin este comportamiento, poner solo la fecha sin tocar el estado
+dejaba el libro fuera de "Libros terminados por mes" en Estadísticas aunque sí tuviera
+`finishedAt`.
+
+`PATCH /api/books/{id}/progress` — `{ currentPage }` (número, `≥ 0`) actualiza solo la página por
+la que vas, sin reenviar el resto del libro. Si el libro estaba en `WANT_TO_READ` o
+`WANT_TO_BUY` pasa a `READING`, y si no tenía `startedAt` se le pone la fecha de hoy.
+`currentPage` nunca supera `pageCount` (se recorta al máximo si lo intentas).
+
+`POST /api/books/{id}/reread` — solo para libros en `READ`. Archiva la lectura actual (si tenía
+`finishedAt`) y pone el libro en `READING` con `startedAt` hoy, `finishedAt` y `currentPage` a
+`null`. `400` si el libro no está en `READ`. El historial de lecturas archivadas se puede
+consultar en `readHistory` dentro de la respuesta del libro (`{ startedAt, finishedAt }[]`, de
+más reciente a más antigua).
+
+`GET /api/books/export` descarga un CSV (`title,author,isbn,status,pageCount,series,
+seriesPosition,format,startedAt,finishedAt,categories,synopsis`) con toda tu biblioteca.
+`POST /api/books/import` lee ese mismo formato: cada fila necesita al menos `title`, las demás
+columnas son opcionales y las filas sin título se omiten (recogido en `BookImportResult` —
+`{ imported, skipped, messages }`). No exporta ni importa `currentPage` ni el historial de
+relecturas, solo el estado "actual" del libro.
 
 **Estadísticas de lectura**
 
 | Método | Ruta | Cuerpo | Respuesta |
 |---|---|---|---|
-| `GET` | `/api/stats` | — | `{ totalBooksRead, totalBooks, readingDurations, booksByMonth }` |
+| `GET` | `/api/stats` | — | `{ totalBooksRead, totalBooks, currentlyReading, readingDurations, booksByMonth }` |
 
-`readingDurations`: un elemento por libro con `startedAt` y `finishedAt` rellenos —
-`{ bookId, title, startedAt, finishedAt, daysReading }`, orden de más reciente a más antiguo.
-`daysReading` cuenta el día de inicio y el de fin (empezar y acabar el mismo día cuenta como 1).
+`totalBooksRead`: libros en `READ` ahora mismo (uno por libro, una relectura no lo cuenta dos
+veces). `totalBooks`: tamaño total de la biblioteca. `currentlyReading`: libros en `READING`
+ahora mismo.
 
-`booksByMonth`: cuántos libros se terminaron cada mes — `{ year, month, count }`, orden de más
-reciente a más antiguo. Solo cuenta libros `READ` con `finishedAt`; uno sin esa fecha no se puede
-atribuir a ningún mes.
+`readingDurations`: un elemento por cada lectura completada con `startedAt` y `finishedAt`
+rellenos — `{ bookId, title, startedAt, finishedAt, daysReading, current }`, orden de más
+reciente a más antigua. `daysReading` cuenta el día de inicio y el de fin (empezar y acabar el
+mismo día cuenta como 1). `current` distingue la lectura activa del libro (editable vía
+`PATCH .../reading-dates`) de una archivada por una relectura (`false`; sus fechas ya no se
+pueden tocar desde aquí, solo consultar).
+
+`booksByMonth`: cuántas lecturas se terminaron cada mes — `{ year, month, count }`, orden de más
+reciente a más antiguo. Cuenta tanto el libro `READ` con `finishedAt` como cualquier lectura
+archivada de una relectura anterior, así que volver a leer un libro no borra el mes en que lo
+terminaste la primera vez — y si vuelves a terminarlo, suma un segundo acierto ese mes nuevo. Un
+libro sin `finishedAt` no se puede atribuir a ningún mes.
 
 **Calendario de lectura**
 
@@ -274,6 +323,37 @@ followingCount, followedByMe, own, visible, books }` — pero `books` solo viene
 sigues a esa persona (`followedByMe`). Si no, `books` llega vacío aunque el usuario tenga libros de
 verdad — la estantería y las reseñas de alguien son privadas hasta que le sigues.
 
+**Notificaciones**
+
+| Método | Ruta | Cuerpo | Respuesta |
+|---|---|---|---|
+| `GET` | `/api/notifications` | — | Página de notificaciones, más recientes primero |
+| `GET` | `/api/notifications/unread-count` | — | `{ count }` |
+| `POST` | `/api/notifications/read-all` | — | `204` |
+
+Cada notificación: `{ id, type, actorId, actorAlias, actorName, read, createdAt }`. Por ahora el
+único `type` es `NEW_FOLLOWER`, creada automáticamente al seguir a alguien
+(`FollowService.follow()`). `POST .../read-all` marca como leídas todas las que tuvieras
+pendientes de este usuario.
+
+**Feed de actividad**
+
+| Método | Ruta | Cuerpo | Respuesta |
+|---|---|---|---|
+| `GET` | `/api/feed?limit=` | — | Lista de `FeedItemResponse`, más reciente primero |
+
+`limit` (opcional, por defecto 20, máximo 50). Cada elemento:
+`{ type, actorId, actorAlias, actorName, bookId, bookTitle, bookCoverUrl, rating, occurredAt }`,
+con `type` uno de `STARTED_READING`, `FINISHED_READING` o `REVIEWED` (`rating` solo viene relleno
+en este último). Solo incluye actividad de la gente que sigues — mismo criterio de visibilidad
+que el resto de la capa social.
+
+`FeedService` no mantiene una tabla de eventos aparte: combina en memoria, para la gente que
+sigues, sus libros que han pasado a `READING`/`READ` (usando `updatedAt` como marca de tiempo) y
+sus reseñas recientes — mismo criterio pragmático que `StatsService`. Como consecuencia, editar
+un libro que ya estaba en ese estado (corregir un dato suelto, por ejemplo) puede hacer que
+reaparezca en el feed como si acabara de cambiar de estado.
+
 **Categorías**
 
 | Método | Ruta | Cuerpo | Respuesta |
@@ -282,8 +362,22 @@ verdad — la estantería y las reseñas de alguien son privadas hasta que le si
 | `POST` | `/api/categories` | `{ name }` | `201` + categoría |
 | `PUT` | `/api/categories/{id}` | `{ name }` | Categoría actualizada |
 | `DELETE` | `/api/categories/{id}` | — | `204` |
+| `POST` | `/api/categories/seed-defaults` | — | Categorías creadas (solo las que faltaban) |
 
-Nombres duplicados dentro del mismo usuario devuelven `409`.
+Nombres duplicados dentro del mismo usuario devuelven `409`. `POST .../seed-defaults` es la misma
+función que ya crea las 8 categorías por defecto al registrarse (ver más arriba), pero disponible
+bajo demanda para una cuenta que ya existía antes de esa función o que las borró — es idempotente,
+solo añade las que falten por nombre.
+
+**Objetivo de lectura anual**
+
+| Método | Ruta | Cuerpo | Respuesta |
+|---|---|---|---|
+| `GET` | `/api/reading-goals/current` | — | `{ year, targetBooks, booksRead }` |
+| `PUT` | `/api/reading-goals/current` | `{ targetBooks }` | Objetivo actualizado |
+
+Siempre sobre el año en curso. `targetBooks`: entero de 1 a 1000. `booksRead` se calcula a partir
+de los libros `READ` con `finishedAt` en ese año (no hace falta guardarlo aparte).
 
 **Reseñas** (anidadas en libros)
 
