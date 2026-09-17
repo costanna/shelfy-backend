@@ -2,6 +2,7 @@ package com.shelfy.follow;
 
 import com.shelfy.common.exception.DuplicateResourceException;
 import com.shelfy.common.exception.ResourceNotFoundException;
+import com.shelfy.notification.NotificationService;
 import com.shelfy.user.User;
 import com.shelfy.user.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -14,6 +15,7 @@ public class FollowService {
 
     private final FollowRepository followRepository;
     private final UserRepository userRepository;
+    private final NotificationService notificationService;
 
     @Transactional
     public void follow(Long followerId, Long followedId) {
@@ -32,6 +34,8 @@ public class FollowService {
                 .follower(follower)
                 .followed(followed)
                 .build());
+
+        notificationService.notifyNewFollower(followedId, followerId);
     }
 
     @Transactional

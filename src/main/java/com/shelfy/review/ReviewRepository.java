@@ -1,5 +1,7 @@
 package com.shelfy.review;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
@@ -14,4 +16,6 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
     void deleteByBookId(Long bookId);
 
     List<Review> findByUserId(Long userId);
+
+    Page<Review> findByUserIdInOrderByCreatedAtDesc(List<Long> userIds, Pageable pageable);
 }

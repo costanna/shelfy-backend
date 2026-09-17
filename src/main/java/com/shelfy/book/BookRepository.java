@@ -1,5 +1,7 @@
 package com.shelfy.book;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
@@ -14,4 +16,6 @@ public interface BookRepository extends JpaRepository<Book, Long>, JpaSpecificat
     List<Book> findByOwnerId(Long ownerId);
 
     List<Book> findByStatusAndStartedAtBeforeAndReminderSentAtIsNull(BookStatus status, LocalDate startedBefore);
+
+    Page<Book> findByOwnerIdInAndStatusOrderByUpdatedAtDesc(List<Long> ownerIds, BookStatus status, Pageable pageable);
 }
