@@ -27,6 +27,7 @@ public class BookService {
     private final BookRepository bookRepository;
     private final ReviewRepository reviewRepository;
     private final NoteRepository noteRepository;
+    private final ReadEventRepository readEventRepository;
     private final BookMapper bookMapper;
     private final CategoryService categoryService;
     private final UserService userService;
@@ -115,10 +116,36 @@ public class BookService {
     }
 
     @Transactional
+    public BookResponse reread(Long ownerId, Long id) {
+        Book book = findOwned(ownerId, id);
+
+        if (book.getStatus() != BookStatus.READ) {
+            throw new IllegalArgumentException("Solo puedes volver a leer un libro que ya has terminado");
+        }
+
+        if (book.getFinishedAt() != null) {
+            readEventRepository.save(ReadEvent.builder()
+                    .book(book)
+                    .startedAt(book.getStartedAt())
+                    .finishedAt(book.getFinishedAt())
+                    .build());
+        }
+
+        book.setStatus(BookStatus.READING);
+        book.setStartedAt(LocalDate.now());
+        book.setFinishedAt(null);
+        book.setCurrentPage(null);
+        book.setReminderSentAt(null);
+
+        return bookMapper.toResponse(book);
+    }
+
+    @Transactional
     public void delete(Long ownerId, Long id) {
         Book book = findOwned(ownerId, id);
         reviewRepository.deleteByBookId(book.getId());
         noteRepository.deleteByBookId(book.getId());
+        readEventRepository.deleteByBookId(book.getId());
         bookRepository.delete(book);
     }
 

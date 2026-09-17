@@ -7,6 +7,7 @@ public record BookReadingDuration(
         String title,
         LocalDate startedAt,
         LocalDate finishedAt,
-        long daysReading
+        long daysReading,
+        boolean current
 ) {
 }

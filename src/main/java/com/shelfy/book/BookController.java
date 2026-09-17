@@ -83,6 +83,11 @@ public class BookController {
         return bookService.updateProgress(principal.getId(), id, request);
     }
 
+    @PostMapping("/{id}/reread")
+    public BookResponse reread(@AuthenticationPrincipal UserPrincipal principal, @PathVariable Long id) {
+        return bookService.reread(principal.getId(), id);
+    }
+
     @GetMapping("/export")
     public ResponseEntity<byte[]> export(@AuthenticationPrincipal UserPrincipal principal) {
         byte[] body = bookCsvService.export(principal.getId()).getBytes(StandardCharsets.UTF_8);

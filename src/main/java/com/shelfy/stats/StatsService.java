@@ -3,6 +3,8 @@ package com.shelfy.stats;
 import com.shelfy.book.Book;
 import com.shelfy.book.BookRepository;
 import com.shelfy.book.BookStatus;
+import com.shelfy.book.ReadEvent;
+import com.shelfy.book.ReadEventRepository;
 import com.shelfy.stats.dto.BookReadingDuration;
 import com.shelfy.stats.dto.MonthlyReadCount;
 import com.shelfy.stats.dto.ReadingStatsResponse;
@@ -10,8 +12,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -22,10 +26,12 @@ import java.util.stream.Collectors;
 public class StatsService {
 
     private final BookRepository bookRepository;
+    private final ReadEventRepository readEventRepository;
 
     @Transactional(readOnly = true)
     public ReadingStatsResponse getStats(Long ownerId) {
         List<Book> books = bookRepository.findByOwnerId(ownerId);
+        List<ReadEvent> pastReads = readEventRepository.findByOwnerId(ownerId);
 
         long totalBooksRead = books.stream()
                 .filter(book -> book.getStatus() == BookStatus.READ)
@@ -35,22 +41,37 @@ public class StatsService {
                 .filter(book -> book.getStatus() == BookStatus.READING)
                 .count();
 
-        List<BookReadingDuration> readingDurations = books.stream()
-                .filter(book -> book.getStartedAt() != null && book.getFinishedAt() != null)
-                .map(this::toDuration)
+        // Every completed read counts here, including re-reads archived in ReadEvent — a book
+        // you've re-read keeps showing its earlier finish months instead of losing them.
+        // finishedAt is required (it's what a "completion" means); startedAt isn't, same as
+        // before this merge — a READ book can have a finish date without a start date.
+        List<BookReadingDuration> completions = new ArrayList<>();
+
+        for (Book book : books) {
+            if (book.getStatus() == BookStatus.READ && book.getFinishedAt() != null) {
+                completions.add(toDuration(book.getId(), book.getTitle(), book.getStartedAt(), book.getFinishedAt(), true));
+            }
+        }
+        for (ReadEvent event : pastReads) {
+            completions.add(toDuration(
+                    event.getBook().getId(), event.getBook().getTitle(),
+                    event.getStartedAt(), event.getFinishedAt(), false));
+        }
+
+        List<BookReadingDuration> readingDurations = completions.stream()
+                .filter(completion -> completion.startedAt() != null)
                 .sorted(Comparator.comparing(BookReadingDuration::finishedAt).reversed())
                 .toList();
 
-        List<MonthlyReadCount> booksByMonth = booksByMonth(books);
+        List<MonthlyReadCount> booksByMonth = booksByMonth(completions);
 
         return new ReadingStatsResponse(totalBooksRead, books.size(), currentlyReading, readingDurations, booksByMonth);
     }
 
-    private List<MonthlyReadCount> booksByMonth(List<Book> books) {
-        Map<YearMonth, Long> counts = books.stream()
-                .filter(book -> book.getStatus() == BookStatus.READ && book.getFinishedAt() != null)
+    private List<MonthlyReadCount> booksByMonth(List<BookReadingDuration> completions) {
+        Map<YearMonth, Long> counts = completions.stream()
                 .collect(Collectors.groupingBy(
-                        book -> YearMonth.from(book.getFinishedAt()),
+                        completion -> YearMonth.from(completion.finishedAt()),
                         Collectors.counting()
                 ));
 
@@ -65,14 +86,9 @@ public class StatsService {
                 .toList();
     }
 
-    private BookReadingDuration toDuration(Book book) {
-        long days = ChronoUnit.DAYS.between(book.getStartedAt(), book.getFinishedAt()) + 1;
-        return new BookReadingDuration(
-                book.getId(),
-                book.getTitle(),
-                book.getStartedAt(),
-                book.getFinishedAt(),
-                days
-        );
+    private BookReadingDuration toDuration(Long bookId, String title, LocalDate startedAt, LocalDate finishedAt,
+                                            boolean current) {
+        long days = startedAt != null ? ChronoUnit.DAYS.between(startedAt, finishedAt) + 1 : 0;
+        return new BookReadingDuration(bookId, title, startedAt, finishedAt, days, current);
     }
 }

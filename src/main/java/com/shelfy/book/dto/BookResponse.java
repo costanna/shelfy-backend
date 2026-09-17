@@ -23,6 +23,7 @@ public record BookResponse(
         BookStatus status,
         LocalDate startedAt,
         LocalDate finishedAt,
+        List<ReadEventResponse> readHistory,
         List<CategoryResponse> categories,
         Instant createdAt,
         Instant updatedAt

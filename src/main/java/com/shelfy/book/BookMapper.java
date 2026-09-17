@@ -1,6 +1,7 @@
 package com.shelfy.book;
 
 import com.shelfy.book.dto.BookResponse;
+import com.shelfy.book.dto.ReadEventResponse;
 import com.shelfy.category.CategoryMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -12,6 +13,7 @@ import java.util.Comparator;
 public class BookMapper {
 
     private final CategoryMapper categoryMapper;
+    private final ReadEventRepository readEventRepository;
 
     public BookResponse toResponse(Book book) {
         return new BookResponse(
@@ -29,6 +31,9 @@ public class BookMapper {
                 book.getStatus(),
                 book.getStartedAt(),
                 book.getFinishedAt(),
+                readEventRepository.findByBookIdOrderByFinishedAtDesc(book.getId()).stream()
+                        .map(event -> new ReadEventResponse(event.getStartedAt(), event.getFinishedAt()))
+                        .toList(),
                 book.getCategories().stream()
                         .sorted(Comparator.comparing(c -> c.getName().toLowerCase()))
                         .map(categoryMapper::toResponse)
