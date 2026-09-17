@@ -49,8 +49,17 @@ public class AuthService {
     private final EmailService emailService;
     private final CategoryService categoryService;
 
-    @Value("${shelfy.registration.require-email-verification}")
-    private boolean requireEmailVerification;
+    // ⚠️ VERIFICACIÓN POR EMAIL DESACTIVADA A PROPÓSITO — NO BORRAR ESTE BLOQUE.
+    // El envío de emails todavía no funciona en producción, así que se ha forzado
+    // a "false" directamente en el código (no solo con la variable de entorno
+    // REQUIRE_EMAIL_VERIFICATION), para que no dependa de la configuración de Render.
+    // Para reactivar la verificación en el futuro:
+    //   1. Descomenta la línea @Value de abajo y borra la inicialización "= false".
+    //   2. Descomenta los bloques marcados con el mismo aviso en register() y login().
+    // No elimines este campo ni los métodos verifyEmail()/resendVerification():
+    // AuthController y EmailService siguen dependiendo de ellos para compilar.
+    // @Value("${shelfy.registration.require-email-verification}")
+    private boolean requireEmailVerification = false;
 
     @Transactional
     public MessageResponse register(RegisterRequest request) {
@@ -64,16 +73,18 @@ public class AuthService {
                 .name(request.name())
                 .emailVerified(!requireEmailVerification);
 
-        if (requireEmailVerification) {
-            String token = UUID.randomUUID().toString();
-            builder.verificationToken(token)
-                    .verificationTokenExpiresAt(Instant.now().plus(VERIFICATION_TOKEN_TTL));
-
-            User user = userRepository.save(builder.build());
-            categoryService.seedMissingDefaults(user);
-            emailService.sendVerificationEmail(user.getEmail(), user.getName(), token);
-            return new MessageResponse("Te hemos enviado un email para verificar tu cuenta.");
-        }
+        // ⚠️ NO BORRAR — rama de envío de email de verificación, desactivada mientras
+        // requireEmailVerification esté forzado a false más arriba.
+        // if (requireEmailVerification) {
+        //     String token = UUID.randomUUID().toString();
+        //     builder.verificationToken(token)
+        //             .verificationTokenExpiresAt(Instant.now().plus(VERIFICATION_TOKEN_TTL));
+        //
+        //     User user = userRepository.save(builder.build());
+        //     categoryService.seedMissingDefaults(user);
+        //     emailService.sendVerificationEmail(user.getEmail(), user.getName(), token);
+        //     return new MessageResponse("Te hemos enviado un email para verificar tu cuenta.");
+        // }
 
         User user = userRepository.save(builder.build());
         categoryService.seedMissingDefaults(user);
@@ -88,9 +99,11 @@ public class AuthService {
         UserPrincipal principal = (UserPrincipal) authentication.getPrincipal();
         User user = userRepository.getReferenceById(principal.getId());
 
-        if (requireEmailVerification && !user.isEmailVerified()) {
-            throw new EmailNotVerifiedException();
-        }
+        // ⚠️ NO BORRAR — comprobación de cuenta verificada, desactivada mientras
+        // requireEmailVerification esté forzado a false más arriba.
+        // if (requireEmailVerification && !user.isEmailVerified()) {
+        //     throw new EmailNotVerifiedException();
+        // }
 
         categoryService.seedMissingDefaults(user);
 
