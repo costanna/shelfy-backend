@@ -1,5 +1,7 @@
 # 📚 Shelfy — Backend
 
+**🇪🇸 Español** (este documento) · **[🇬🇧 English](#english)**
+
 > API REST para Shelfy, una biblioteca personal: libros por estado de lectura con progreso por páginas, sagas y formato, categorías propias, reseñas y notas privadas, estadísticas, relecturas, y una capa social con feed de actividad y notificaciones — con autenticación JWT y aislamiento estricto por usuario.
 
 [![API en vivo](https://img.shields.io/badge/API-en%20vivo-brightgreen)](https://shelfy-backend-prw2.onrender.com/actuator/health)
@@ -450,5 +452,460 @@ la siguiente conexión.
 </details>
 
 ## 📄 Licencia
+
+[MIT](./LICENSE)
+
+---
+
+## English
+
+**[🇪🇸 Español](#-shelfy--backend)** · **🇬🇧 English** (this document)
+
+> REST API for Shelfy, a personal library: books by reading status with page progress, series and
+> format, your own categories, private reviews and notes, stats, re-reads, and a social layer with
+> an activity feed and notifications — with JWT authentication and strict per-user isolation.
+
+[![API live](https://img.shields.io/badge/API-live-brightgreen)](https://shelfy-backend-prw2.onrender.com/actuator/health)
+![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5-6DB33F?logo=springboot&logoColor=white)
+![Java](https://img.shields.io/badge/Java-21-ED8B00?logo=openjdk&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Neon-4169E1?logo=postgresql&logoColor=white)
+![JWT](https://img.shields.io/badge/Auth-JWT-000000?logo=jsonwebtokens&logoColor=white)
+![License](https://img.shields.io/badge/license-MIT-blue)
+
+This repository is the **backend**. The frontend (Angular) that consumes it lives in
+[**shelfy-frontend**](https://github.com/costanna/shelfy-frontend) —
+**[🔗 try it live](https://shelfy-reads.vercel.app)** (a demo account is already loaded with data:
+`demo@shelfy.app` / `shelfy123`).
+
+> Deployed on Render's free tier: if it's been asleep for a while, the first request can take up
+> to a minute to respond. That's expected, not an error.
+
+---
+
+### What it exposes
+
+Registration with email verification, login, password recovery, book CRUD with filters, sorting
+and pagination, reading progress by page, series and format (physical/ebook/audiobook), a user's
+own categories, reviews and notes nested in each book, importing/exporting the library as CSV,
+reading stats (books finished per month, how many days each one took, how many you're currently
+reading), the ability to re-read a book you've already finished without losing track of the
+previous read, and an optional social layer: search other users by alias, follow them to see their
+shelf and reviews, get a notification when someone follows you, and a feed with what the people you
+follow have been up to — guaranteeing that no one can ever *modify* another user's data, and that
+someone's shelf, reviews and activity can only be *seen* if that person has you among their
+followers.
+
+### Highlights
+
+- **JWT authentication** end to end (Spring Security), with hashed passwords and configurable token expiration.
+- **Data-level, per-user isolation**, not just UI-level: requesting someone else's book, category or review returns `404`, not `403`, so as not to even reveal that it exists. Enforced consistently in the `Service`, never trusting client-side filtering.
+- **Real filtering and pagination** on `GET /api/books` (status, category, free text, sort order), using Spring Data JPA's `Specification` instead of ad hoc queries for every filter combination.
+- **Centralized error handling**: a single `@ControllerAdvice` translates validation errors, duplicates and not-found resources into a consistent error format across the whole API.
+- **Custom business validation with Bean Validation**: `@HalfStep` (reviews, half-star steps only), `@ValidDateRange` (books, `finishedAt` can't be before `startedAt`) and `@NoProfanity` (user alias) are purpose-built annotations with their own `ConstraintValidator`, just like `@Min`/`@Max` for any other domain rule — `@ValidDateRange` even redirects the error to a specific field (`finishedAt`) from a class-level validation.
+- **Unique user alias without locking yourself out**: the uniqueness check lives in the `Service`, not in the validation annotation — so a user can save the alias they already had without it being rejected as "already in use" for colliding with their own row.
+- **Social visibility without duplicating data**: there's no separate "public version" of `Book`/`Review` in the database — `UserProfileService` reuses the same entities and only decides, at request time, whether to fill in `books` in the response or return it empty based on `own`/`followedByMe`. Also, without an alias a user simply doesn't show up in `/api/users/search`: not being findable is the default, you have to set an alias to become discoverable.
+- **Production-ready with no code changes**: all configuration (DB, JWT, CORS) comes from environment variables, with sensible defaults for local development.
+- **Stats computed on the fly**: `/api/stats` groups the user's books in memory with the Stream API (by `finishedAt` month, by status, etc.) instead of keeping denormalized counters — simple and fast enough for the real size of a personal library. The activity feed (`/api/feed`) follows the same approach: it combines recent books and reviews from the people you follow in memory instead of keeping a separate event table.
+- **Re-reads without losing history**: `Book.startedAt`/`finishedAt` remain the "current" read, but re-reading a book (`POST .../reread`, or reopening it from Stats) archives the finished read into `ReadEvent` before resetting it — so `/api/stats` can keep counting the month you first finished it, and the month you finish it again, instead of the second read overwriting the first.
+- **Email verification without blocking startup if mail fails**: `management.health.mail.enabled=false` — by default, Spring Boot Actuator adds a health check that opens a real SMTP connection on every `/actuator/health` as soon as it detects `spring-boot-starter-mail` on the classpath; without disabling it, a one-off Gmail hiccup (or missing credentials locally) took down the health check for the *whole* service, not just email sending.
+- **Existing accounts don't break when verification is added**: `email_verified` is added with `@ColumnDefault("true")`, so Hibernate migrates accounts that already existed in the database as verified; only new accounts start out unverified.
+- **Explicit indexes on owner and foreign-key columns** (`books.owner_id`, `categories.owner_id`, `reviews.book_id`/`user_id`, `follows.followed_id`, `book_categories.book_id`/`category_id`): PostgreSQL doesn't index these on its own, only the primary key and `UNIQUE` ones — and every "my books/categories/reviews" query filters by exactly one of these columns.
+
+### How it's built
+
+| | |
+|---|---|
+| **Stack** | Spring Boot 3.5 · Java 21 · Spring Data JPA · Spring Security · Bean Validation · Lombok |
+| **Database** | PostgreSQL (Neon in production; in-memory H2 or Docker locally) |
+| **Deployment** | Render (Web Service, Docker) via Blueprint ([`render.yaml`](./render.yaml)) |
+
+```text
+com.shelfy
+├── auth/          registration, login, email verification, password recovery
+├── user/          profile, alias, preferences, user search, public profile
+├── follow/        follow/unfollow, counters
+├── notification/  notifications (e.g. new follower)
+├── feed/          activity feed of the people you follow
+├── book/          entity, filters, CRUD, reading progress, re-reads, CSV
+├── category/      a user's own categories
+├── review/        reviews nested in books
+├── note/          private notes nested in books
+├── goal/          annual reading goal
+├── readinglog/    reading calendar (marked days, streaks)
+├── stats/         reading stats
+├── mail/          sending emails (verification, recovery, reminders)
+├── security/      JwtService, JWT filter, UserPrincipal
+├── config/        security, CORS and sample data
+└── common/        API errors and paginated response
+```
+
+One package per *feature* (not per technical layer), with each one's classes split by
+responsibility: `Controller` → `Service` → `Repository`, their own input/output DTOs and a
+`Mapper` between entity and DTO.
+
+### Running locally
+
+Without installing PostgreSQL, with sample data:
+
+```bash
+mvn spring-boot:run -Dspring-boot.run.profiles=local
+```
+
+Starts at `http://localhost:8080` with a ready-to-use account (`demo@shelfy.app` /
+`shelfy123`) on an in-memory H2 database — lost when the server stops.
+
+With real PostgreSQL, via Docker:
+
+```bash
+docker compose up -d
+mvn spring-boot:run
+```
+
+<details>
+<summary><strong>More details: environment variables, endpoints, error format, deployment</strong></summary>
+
+#### Environment variables
+
+| Variable | Default | What it's for |
+|---|---|---|
+| `DB_URL` | *(composed, see below)* | Full PostgreSQL JDBC URL. If set, it takes priority over `DB_HOST`/`DB_PORT`/`DB_NAME` |
+| `DB_HOST` | `localhost` | PostgreSQL host (alternative to `DB_URL`, used by `render.yaml`) |
+| `DB_PORT` | `5432` | PostgreSQL port |
+| `DB_NAME` | `shelfy` | Database name |
+| `DB_USER` | `shelfy` | Database user |
+| `DB_PASSWORD` | `shelfy` | Database password |
+| `DB_SSLMODE` | `disable` | Connection TLS mode (`require` on Neon and similar providers) |
+| `JWT_SECRET` | *(development value)* | Signing secret. **Required in production**, at least 32 characters |
+| `JWT_EXPIRATION_MS` | `86400000` (24 h) | Token expiration |
+| `CORS_ALLOWED_ORIGINS` | `http://localhost:4200` | Allowed origins, comma-separated |
+| `FRONTEND_URL` | `http://localhost:4200` | Base for the verification/recovery links in emails |
+| `MAIL_ENABLED` | `false` | If `false`, no real email is sent: the link is left in the log instead (so the whole flow can be tested locally without credentials) |
+| `MAIL_HOST` | `smtp.gmail.com` | SMTP server |
+| `MAIL_PORT` | `587` | SMTP port |
+| `MAIL_USERNAME` | — | Gmail account that sends the emails |
+| `MAIL_PASSWORD` | — | [App password](https://myaccount.google.com/apppasswords) for that account (not the regular password; requires 2-step verification enabled) |
+| `MAIL_FROM` | value of `MAIL_USERNAME` | Sender of the emails |
+| `REQUIRE_EMAIL_VERIFICATION` | `true` | Emergency switch: when `false`, accounts are born already verified and login doesn't depend on email (`forgot-password` still works the same, unaffected by this variable) |
+| `DDL_AUTO` | `update` | Hibernate schema strategy |
+| `PORT` | `8080` | HTTP port (Render injects this automatically) |
+
+#### Authentication
+
+Every endpoint except `/api/auth/**` requires the header:
+
+```text
+Authorization: Bearer <token>
+```
+
+The token is obtained from `register` or `login` and expires after 24 h.
+
+#### Endpoints
+
+**Auth**
+
+| Method | Route | Body | Response |
+|---|---|---|---|
+| `POST` | `/api/auth/register` | `{ email, password, name }` | `201` + `{ message }` |
+| `POST` | `/api/auth/login` | `{ email, password }` | `200` + `{ token, tokenType, expiresIn, user }`, or `403` if the email isn't verified |
+| `GET` | `/api/auth/verify-email?token=` | — | `200` + `{ token, tokenType, expiresIn, user }` (verifies and logs in at once) |
+| `POST` | `/api/auth/resend-verification` | `{ email }` | `200` + `{ message }`, always the same message whether the account exists or not |
+| `POST` | `/api/auth/forgot-password` | `{ email }` | `200` + `{ message }`, always the same message whether the account exists or not |
+| `POST` | `/api/auth/reset-password` | `{ token, newPassword }` | `200` + `{ message }` |
+
+`password`: 8 to 72 characters. Registration no longer logs you in right away: you need to verify
+your email first (link valid for 24 h). The `forgot-password` token expires in 1 h and only works
+once.
+
+Every new account is created with 8 default categories (Fiction, Non-fiction, Fantasy, Science
+Fiction, Mystery & Thriller, Romance, Biography, Poetry) — `CategoryService.seedDefaults()`, so the
+Categories section doesn't start out completely empty. They're regular categories: they can be
+renamed or deleted like any other, they aren't protected.
+
+**User**
+
+| Method | Route | Body | Response |
+|---|---|---|---|
+| `GET` | `/api/users/me` | — | `{ id, email, name, alias, themePreference, languagePreference, avatarUpdatedAt }` |
+| `PATCH` | `/api/users/me/preferences` | `{ themePreference?, languagePreference? }` | Updated user |
+| `PATCH` | `/api/users/me/alias` | `{ alias }` | Updated user, or `409` if the alias is already taken by another account |
+| `POST` | `/api/users/me/avatar` | `multipart/form-data`, field `file` | Updated user, or `400` if it's not a valid image (PNG/JPEG/WEBP, max. 5 MB) |
+| `DELETE` | `/api/users/me/avatar` | — | Updated user (idempotent: doesn't fail if you had no avatar) |
+| `GET` | `/api/users/{id}/avatar` | — | JPEG image (public, unauthenticated), or `404` if that user has no avatar |
+
+- `themePreference`: `LIGHT` · `DARK` · `SYSTEM`
+- `languagePreference`: `en` · `ca` · `es`
+- `alias`: 3–24 characters, letters/numbers/`_` only, unique across accounts (case-insensitive)
+  and free of profanity (ES/CA/EN). Optional — `null` until the user picks one.
+- `avatarUpdatedAt`: `null` if there's no avatar; otherwise, the date it was uploaded/changed —
+  meant for the frontend to use as a cache-busting parameter (`?v=...`) in the image URL, not to
+  display. Any uploaded image is cropped to a centered square and resized to 320×320 px as JPEG
+  before saving, so the size stored in the database doesn't depend on what each user uploads.
+  `GET /api/users/{id}/avatar` is the only route under `/api/users` that doesn't require a
+  session: an `<img>` tag doesn't send the `Authorization` header the frontend's HTTP interceptor
+  adds, so it has to be public — like the rest of the app, there's nothing sensitive in someone's
+  profile picture.
+
+**Books**
+
+| Method | Route | Body | Response |
+|---|---|---|---|
+| `GET` | `/api/books` | — | Page of books |
+| `GET` | `/api/books/{id}` | — | Book |
+| `POST` | `/api/books` | `BookRequest` | `201` + book |
+| `PUT` | `/api/books/{id}` | `BookRequest` | Updated book |
+| `DELETE` | `/api/books/{id}` | — | `204` |
+| `PATCH` | `/api/books/{id}/reading-dates` | `{ startedAt?, finishedAt? }` | Updated book |
+| `PATCH` | `/api/books/{id}/progress` | `{ currentPage }` | Updated book |
+| `POST` | `/api/books/{id}/reread` | — | Updated book |
+| `GET` | `/api/books/export` | — | CSV of the whole library |
+| `POST` | `/api/books/import` | `multipart/form-data`, field `file` | `BookImportResult` |
+
+`GET /api/books` filters (optional and combinable): `status`, `categoryId`, `q` (free text on
+title/author), `page`/`size` (pagination, 12 by default), `sort` (defaults to `createdAt,desc`;
+accepts any of the book's own fields, e.g. `title,asc` or `pageCount,desc`).
+
+```json
+// BookRequest — only title and status are required
+{
+  "title": "Dune",
+  "author": "Frank Herbert",
+  "coverUrl": "https://...",
+  "isbn": "9788497596909",
+  "synopsis": "...",
+  "pageCount": 688,
+  "currentPage": 120,
+  "series": "Dune",
+  "seriesPosition": 1,
+  "format": "PHYSICAL",
+  "status": "WANT_TO_READ",
+  "startedAt": "2026-01-01",
+  "finishedAt": "2026-01-10",
+  "categoryIds": [1, 3]
+}
+```
+
+`status`: `WANT_TO_READ` · `READING` · `READ` · `WANT_TO_BUY`. `format` (optional): `PHYSICAL` ·
+`EBOOK` · `AUDIOBOOK`. `startedAt`/`finishedAt`: `ISO-8601` dates (`YYYY-MM-DD`), optional; if both
+are sent, `finishedAt` can't be before `startedAt` (`400` if it is).
+
+`PATCH /api/books/{id}/reading-dates` exists separately from `PUT` so you can change (or clear, by
+sending both as `null`) just the reading range from Stats without resending the rest of the book —
+same date rules as `BookRequest`. Since this route doesn't take a status (unlike the full form), it
+infers one from the dates: sending `finishedAt` puts the book in `READ`, and sending only
+`startedAt` (without `finishedAt`) puts it in `READING` if it was in `WANT_TO_READ`, `WANT_TO_BUY`
+or `READ` — in this last case, just like `POST .../reread` (see below), it archives the read it had
+finished before overwriting it, so it isn't lost from "books finished per month". It never
+downgrades a `READ` book: clearing `finishedAt` without sending `startedAt` leaves it at
+`WANT_TO_READ`, not `READING`. Without this, setting just the date without touching the status left
+the book out of "books finished per month" in Stats even though it had a `finishedAt`.
+
+`PATCH /api/books/{id}/progress` — `{ currentPage }` (number, `≥ 0`) updates just the page you're
+on, without resending the rest of the book. If the book was in `WANT_TO_READ` or `WANT_TO_BUY` it
+moves to `READING`, and if it had no `startedAt` it gets today's date. `currentPage` never exceeds
+`pageCount` (it's clamped to the max if you try).
+
+`POST /api/books/{id}/reread` — only for books in `READ`. Archives the current read (if it had a
+`finishedAt`) and puts the book in `READING` with `startedAt` set to today, and `finishedAt` and
+`currentPage` set to `null`. `400` if the book isn't in `READ`. The history of archived reads can
+be checked in `readHistory` inside the book's response (`{ startedAt, finishedAt }[]`, most recent
+first).
+
+`GET /api/books/export` downloads a CSV (`title,author,isbn,status,pageCount,series,
+seriesPosition,format,startedAt,finishedAt,categories,synopsis`) with your whole library.
+`POST /api/books/import` reads that same format: each row needs at least a `title`, the other
+columns are optional and rows with no title are skipped (reported in `BookImportResult` —
+`{ imported, skipped, messages }`). It doesn't export or import `currentPage` or the re-read
+history, only the book's "current" state.
+
+**Reading stats**
+
+| Method | Route | Body | Response |
+|---|---|---|---|
+| `GET` | `/api/stats` | — | `{ totalBooksRead, totalBooks, currentlyReading, readingDurations, booksByMonth }` |
+
+`totalBooksRead`: books in `READ` right now (one per book, a re-read doesn't count it twice).
+`totalBooks`: total library size. `currentlyReading`: books in `READING` right now.
+
+`readingDurations`: one entry per completed read with both `startedAt` and `finishedAt` set —
+`{ bookId, title, startedAt, finishedAt, daysReading, current }`, most recent first.
+`daysReading` counts both the start and end day (starting and finishing the same day counts as 1).
+`current` distinguishes the book's active read (editable via `PATCH .../reading-dates`) from one
+archived by a re-read (`false`; its dates can no longer be edited here, only viewed).
+
+`booksByMonth`: how many reads were finished each month — `{ year, month, count }`, most recent
+first. Counts both the `READ` book with a `finishedAt` and any read archived by an earlier
+re-read, so re-reading a book doesn't erase the month you first finished it — and if you finish it
+again, it adds a second hit to that new month. A book with no `finishedAt` can't be attributed to
+any month.
+
+**Reading calendar**
+
+| Method | Route | Body | Response |
+|---|---|---|---|
+| `GET` | `/api/reading-log?year=&month=` | — | `{ year, month, days }` — only days with something marked |
+| `GET` | `/api/reading-log/streak` | — | `{ currentStreak, longestStreak }` |
+| `GET` | `/api/reading-log/summary` | — | The whole history grouped by book: `[{ bookId, title, dates }]` |
+| `POST` | `/api/reading-log` | `{ bookId, date }` | `204`. Idempotent: if that book was already marked that day, it's a no-op |
+| `DELETE` | `/api/reading-log?bookId=&date=` | — | `204` (idempotent) |
+
+Independent of the book's `startedAt`/`finishedAt` (which remain the "official" range on the
+detail page): this is a day-by-day log meant for the interactive calendar in Stats — the same day
+can have several books marked (reading more than one in parallel), and a book can have loose
+marked days unrelated to its declared reading range.
+
+`days` returns, for each day with at least one book marked, `{ date, books: [{ id, title, coverUrl }] }`.
+`date` for `POST`/`DELETE` can't be in the future (`400` if it is). Marking a book that isn't yours
+returns `404`, not `403` (same rule as the rest of the API).
+
+`currentStreak`/`longestStreak` are computed over the whole history, not just the month being
+viewed — the current streak counts consecutive days ending today, but stays "alive" if the last
+marked day was yesterday (so as not to penalize someone who hasn't marked today yet); two days
+with nothing marked breaks it.
+
+**Following other users**
+
+| Method | Route | Body | Response |
+|---|---|---|---|
+| `GET` | `/api/users/search?q=` | — | Up to 20 users whose alias contains `q` (case-insensitive), never including yourself |
+| `GET` | `/api/users/{id}/profile` | — | That user's public profile |
+| `POST` | `/api/users/{id}/follow` | — | `204`. `409` if you already follow them, `400` if it's your own id |
+| `DELETE` | `/api/users/{id}/follow` | — | `204` (idempotent: doesn't fail if you weren't following them) |
+
+`GET /api/users/search` only finds users who have an alias set — without one, you're not
+findable. Each result: `{ id, alias, name, followersCount, followedByMe }`.
+
+The profile (`GET /api/users/{id}/profile`) always returns `{ id, alias, name, followersCount,
+followingCount, followedByMe, own, visible, books }` — but `books` is only filled in (with its
+nested reviews and categories) if `visible` is `true`: either it's your own profile (`own`), or
+you follow that person (`followedByMe`). Otherwise, `books` comes back empty even if the user has
+real books — someone's shelf and reviews are private until you follow them.
+
+**Notifications**
+
+| Method | Route | Body | Response |
+|---|---|---|---|
+| `GET` | `/api/notifications` | — | Page of notifications, most recent first |
+| `GET` | `/api/notifications/unread-count` | — | `{ count }` |
+| `POST` | `/api/notifications/read-all` | — | `204` |
+
+Each notification: `{ id, type, actorId, actorAlias, actorName, read, createdAt }`. For now the
+only `type` is `NEW_FOLLOWER`, created automatically when someone follows you
+(`FollowService.follow()`). `POST .../read-all` marks all of this user's pending notifications as
+read.
+
+**Activity feed**
+
+| Method | Route | Body | Response |
+|---|---|---|---|
+| `GET` | `/api/feed?limit=` | — | List of `FeedItemResponse`, most recent first |
+
+`limit` (optional, defaults to 20, max 50). Each item:
+`{ type, actorId, actorAlias, actorName, bookId, bookTitle, bookCoverUrl, rating, occurredAt }`,
+with `type` one of `STARTED_READING`, `FINISHED_READING` or `REVIEWED` (`rating` is only filled in
+for the latter). Only includes activity from the people you follow — same visibility rule as the
+rest of the social layer.
+
+`FeedService` doesn't keep a separate event table: for the people you follow, it combines in
+memory their books that moved to `READING`/`READ` (using `updatedAt` as the timestamp) and their
+recent reviews — same pragmatic approach as `StatsService`. As a consequence, editing a book
+that's already in that status (fixing a stray typo, say) can make it resurface in the feed as if
+it had just changed status.
+
+**Categories**
+
+| Method | Route | Body | Response |
+|---|---|---|---|
+| `GET` | `/api/categories` | — | List sorted by name |
+| `POST` | `/api/categories` | `{ name }` | `201` + category |
+| `PUT` | `/api/categories/{id}` | `{ name }` | Updated category |
+| `DELETE` | `/api/categories/{id}` | — | `204` |
+| `POST` | `/api/categories/seed-defaults` | — | Categories created (only the missing ones) |
+
+Duplicate names within the same user return `409`. `POST .../seed-defaults` is the same function
+that already creates the 8 default categories at registration (see above), but available on
+demand for an account that existed before that feature or that deleted them — it's idempotent,
+only adding the ones missing by name.
+
+**Annual reading goal**
+
+| Method | Route | Body | Response |
+|---|---|---|---|
+| `GET` | `/api/reading-goals/current` | — | `{ year, targetBooks, booksRead }` |
+| `PUT` | `/api/reading-goals/current` | `{ targetBooks }` | Updated goal |
+
+Always for the current year. `targetBooks`: integer from 1 to 1000. `booksRead` is computed from
+the `READ` books with a `finishedAt` in that year (no need to store it separately).
+
+**Reviews** (nested in books)
+
+| Method | Route | Body | Response |
+|---|---|---|---|
+| `GET` | `/api/books/{bookId}/reviews` | — | List, most recent first |
+| `POST` | `/api/books/{bookId}/reviews` | `{ rating, text }` | `201` + review |
+| `PUT` | `/api/books/{bookId}/reviews/{id}` | `{ rating, text }` | Updated review |
+| `DELETE` | `/api/books/{bookId}/reviews/{id}` | — | `204` |
+
+`rating`: a number from 0.5 to 5, in steps of 0.5 (e.g. `3.5`).
+
+#### Error format
+
+```json
+{
+  "timestamp": "2026-09-15T10:09:57.588Z",
+  "status": 400,
+  "error": "Bad Request",
+  "message": "Invalid input data",
+  "fieldErrors": { "password": "Password must be between 8 and 72 characters" }
+}
+```
+
+`fieldErrors` only appears for validation errors.
+
+| Code | When |
+|---|---|
+| `400` | Validation failed |
+| `401` | No token, expired token, or wrong credentials |
+| `404` | The resource doesn't exist or belongs to another user |
+| `409` | Email or category name already in use |
+
+#### Deploying to Render (backend) + Neon (database)
+
+Render's Free plan only allows **one** managed PostgreSQL database per account, so Shelfy's
+database lives on [Neon](https://neon.tech) (free, no such limit) and the backend runs on Render
+as a Web Service.
+
+**Quick option — Blueprint**: the repo includes [`render.yaml`](./render.yaml). In the dashboard:
+**New → Blueprint** → connect `shelfy-backend`. It will ask for `DB_HOST`, `DB_NAME`, `DB_USER`,
+`DB_PASSWORD` (Neon's connection details) and `MAIL_USERNAME`/`MAIL_PASSWORD` (see below);
+`DB_PORT`, `DB_SSLMODE=require`, `JWT_SECRET`, `MAIL_ENABLED` and `FRONTEND_URL` are already
+resolved, and `CORS_ALLOWED_ORIGINS` points at the frontend on Vercel.
+
+**Manual option**: **New → Web Service** → connect this repository → **Docker** runtime. In
+*Environment*, define the same variables by hand. Health check path: `/actuator/health`.
+
+> Use Neon's **direct** endpoint, not the `-pooler` one: with PgBouncer in *transaction* mode,
+> Hibernate can hit intermittent *prepared statement* errors.
+
+Render's Free plan puts the service to sleep after ~15 min of inactivity (the first request
+afterward can take close to a minute); Neon hibernates the database similarly and wakes up on its
+own on the next connection.
+
+**Sending real emails (Gmail):**
+
+1. Enable 2-step verification on the Gmail account that will send the emails.
+2. Generate an [app password](https://myaccount.google.com/apppasswords) (16 characters,
+   different from your regular password).
+3. On Render (the service's *Environment*), set `MAIL_USERNAME` to that Gmail account and
+   `MAIL_PASSWORD` to the app password (**never the account's regular password**), and switch
+   `MAIL_ENABLED` to `true` — it defaults to `false` (registration and recovery still work, just
+   without actually sending the email) so as not to leave registration broken in production until
+   the credentials are in place.
+4. Locally, leave `MAIL_ENABLED` unset (defaults to `false`): verification and recovery links are
+   written to the server log instead of being sent, so the whole flow can be tested without real
+   credentials.
+
+</details>
+
+## License
 
 [MIT](./LICENSE)
