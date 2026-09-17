@@ -14,6 +14,6 @@ public interface ReadEventRepository extends JpaRepository<ReadEvent, Long> {
 
     void deleteByBookId(Long bookId);
 
-    @Query("select r from ReadEvent r where r.book.owner.id = :ownerId")
+    @Query("select r from ReadEvent r join fetch r.book b where b.owner.id = :ownerId")
     List<ReadEvent> findByOwnerId(@Param("ownerId") Long ownerId);
 }

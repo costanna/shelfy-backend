@@ -101,14 +101,7 @@ public class BookService {
                     || previousStatus == BookStatus.READ) {
                 // Re-opening a finished book this way is the same move as reread(): archive its
                 // finished read first, so it doesn't vanish from "libros terminados por mes".
-                if (previousStatus == BookStatus.READ && previousFinishedAt != null) {
-                    readEventRepository.save(ReadEvent.builder()
-                            .book(book)
-                            .startedAt(previousStartedAt)
-                            .finishedAt(previousFinishedAt)
-                            .build());
-                    book.setCurrentPage(null);
-                }
+                archivePreviousRead(book, previousStatus, previousStartedAt, previousFinishedAt);
                 book.setStatus(BookStatus.READING);
             }
         } else if (previousStatus == BookStatus.READ || previousStatus == BookStatus.READING) {
@@ -127,11 +120,12 @@ public class BookService {
     public BookResponse updateProgress(Long ownerId, Long id, UpdateProgressRequest request) {
         Book book = findOwned(ownerId, id);
 
-        Integer currentPage = request.currentPage();
-        if (book.getPageCount() != null && currentPage > book.getPageCount()) {
-            currentPage = book.getPageCount();
+        if (book.getStatus() == BookStatus.READ) {
+            throw new IllegalArgumentException(
+                    "Este libro ya está marcado como leído; usa \"Volver a leer\" si quieres actualizar su progreso");
         }
-        book.setCurrentPage(currentPage);
+
+        book.setCurrentPage(clampToPageCount(request.currentPage(), book.getPageCount()));
 
         if (book.getStatus() == BookStatus.WANT_TO_READ || book.getStatus() == BookStatus.WANT_TO_BUY) {
             book.setStatus(BookStatus.READING);
@@ -151,18 +145,11 @@ public class BookService {
             throw new IllegalArgumentException("Solo puedes volver a leer un libro que ya has terminado");
         }
 
-        if (book.getFinishedAt() != null) {
-            readEventRepository.save(ReadEvent.builder()
-                    .book(book)
-                    .startedAt(book.getStartedAt())
-                    .finishedAt(book.getFinishedAt())
-                    .build());
-        }
+        archivePreviousRead(book, book.getStatus(), book.getStartedAt(), book.getFinishedAt());
 
         book.setStatus(BookStatus.READING);
         book.setStartedAt(LocalDate.now());
         book.setFinishedAt(null);
-        book.setCurrentPage(null);
         book.setReminderSentAt(null);
 
         return bookMapper.toResponse(book);
@@ -184,27 +171,28 @@ public class BookService {
     }
 
     private void applyRequest(Book book, BookRequest request, Long ownerId) {
+        BookStatus previousStatus = book.getStatus();
+        LocalDate previousStartedAt = book.getStartedAt();
+        LocalDate previousFinishedAt = book.getFinishedAt();
+
         book.setTitle(request.title().trim());
         book.setAuthor(request.author());
         book.setCoverUrl(request.coverUrl());
         book.setIsbn(request.isbn());
         book.setSynopsis(request.synopsis());
         book.setPageCount(request.pageCount());
-        book.setCurrentPage(request.currentPage());
+        book.setCurrentPage(clampToPageCount(request.currentPage(), request.pageCount()));
         book.setSeries(request.series());
         book.setSeriesPosition(request.seriesPosition());
         book.setFormat(request.format());
 
         // Moving a finished book off READ this way (e.g. flipping the status dropdown back to
         // "Reading" on the full edit form) is the same move as reread()/updateReadingDates():
-        // archive the read it had before overwriting it, so it isn't lost from the stats.
-        if (book.getStatus() == BookStatus.READ && book.getFinishedAt() != null
-                && request.status() != BookStatus.READ) {
-            readEventRepository.save(ReadEvent.builder()
-                    .book(book)
-                    .startedAt(book.getStartedAt())
-                    .finishedAt(book.getFinishedAt())
-                    .build());
+        // archive the read it had before overwriting it, so it isn't lost from the stats. This
+        // also resets currentPage — deliberately overriding whatever the request carried for it,
+        // since a re-opened book has no progress yet.
+        if (previousStatus == BookStatus.READ && request.status() != BookStatus.READ) {
+            archivePreviousRead(book, previousStatus, previousStartedAt, previousFinishedAt);
         }
 
         book.setStatus(request.status());
@@ -216,5 +204,30 @@ public class BookService {
         if (book.getStatus() != BookStatus.READING) {
             book.setReminderSentAt(null);
         }
+    }
+
+    /**
+     * If the book's previous state was a finished read (READ with a finishedAt), archives it as a
+     * {@link ReadEvent} and clears currentPage — the common first step whenever a book is about to
+     * start reading again, shared by {@link #reread}, {@link #updateReadingDates} and
+     * {@link #applyRequest} so the three don't drift out of sync with each other.
+     */
+    private void archivePreviousRead(Book book, BookStatus previousStatus, LocalDate previousStartedAt,
+                                      LocalDate previousFinishedAt) {
+        if (previousStatus == BookStatus.READ && previousFinishedAt != null) {
+            readEventRepository.save(ReadEvent.builder()
+                    .book(book)
+                    .startedAt(previousStartedAt)
+                    .finishedAt(previousFinishedAt)
+                    .build());
+            book.setCurrentPage(null);
+        }
+    }
+
+    private Integer clampToPageCount(Integer currentPage, Integer pageCount) {
+        if (currentPage != null && pageCount != null && currentPage > pageCount) {
+            return pageCount;
+        }
+        return currentPage;
     }
 }
