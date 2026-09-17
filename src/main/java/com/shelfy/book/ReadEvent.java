@@ -22,11 +22,6 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import java.time.Instant;
 import java.time.LocalDate;
 
-/**
- * A past, completed reading of a book, archived when the reader starts it again ({@link
- * BookService#reread}). Book.startedAt/finishedAt always describe the current/latest reading;
- * this table only holds the ones before that.
- */
 @Entity
 @Table(name = "book_read_events", indexes = @Index(name = "idx_book_read_events_book_id", columnList = "book_id"))
 @EntityListeners(AuditingEntityListener.class)

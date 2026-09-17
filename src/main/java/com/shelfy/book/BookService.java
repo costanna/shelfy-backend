@@ -45,7 +45,6 @@ public class BookService {
 
         Page<Book> page = bookRepository.findAll(spec, pageable);
 
-        // Batch-fetch read history for the whole page instead of one query per book.
         List<Long> bookIds = page.getContent().stream().map(Book::getId).toList();
         Map<Long, List<ReadEvent>> readHistoryByBookId = bookIds.isEmpty()
                 ? Map.of()
@@ -99,8 +98,6 @@ public class BookService {
         } else if (request.startedAt() != null) {
             if (previousStatus == BookStatus.WANT_TO_READ || previousStatus == BookStatus.WANT_TO_BUY
                     || previousStatus == BookStatus.READ) {
-                // Re-opening a finished book this way is the same move as reread(): archive its
-                // finished read first, so it doesn't vanish from "libros terminados por mes".
                 archivePreviousRead(book, previousStatus, previousStartedAt, previousFinishedAt);
                 book.setStatus(BookStatus.READING);
             }
@@ -186,11 +183,6 @@ public class BookService {
         book.setSeriesPosition(request.seriesPosition());
         book.setFormat(request.format());
 
-        // Moving a finished book off READ this way (e.g. flipping the status dropdown back to
-        // "Reading" on the full edit form) is the same move as reread()/updateReadingDates():
-        // archive the read it had before overwriting it, so it isn't lost from the stats. This
-        // also resets currentPage — deliberately overriding whatever the request carried for it,
-        // since a re-opened book has no progress yet.
         if (previousStatus == BookStatus.READ && request.status() != BookStatus.READ) {
             archivePreviousRead(book, previousStatus, previousStartedAt, previousFinishedAt);
         }
@@ -206,12 +198,6 @@ public class BookService {
         }
     }
 
-    /**
-     * If the book's previous state was a finished read (READ with a finishedAt), archives it as a
-     * {@link ReadEvent} and clears currentPage — the common first step whenever a book is about to
-     * start reading again, shared by {@link #reread}, {@link #updateReadingDates} and
-     * {@link #applyRequest} so the three don't drift out of sync with each other.
-     */
     private void archivePreviousRead(Book book, BookStatus previousStatus, LocalDate previousStartedAt,
                                       LocalDate previousFinishedAt) {
         if (previousStatus == BookStatus.READ && previousFinishedAt != null) {

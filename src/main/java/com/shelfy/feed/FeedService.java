@@ -19,13 +19,6 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
-/**
- * Builds a lightweight "what people you follow have been up to" feed by merging their most
- * recent status changes and reviews in memory, rather than maintaining a separate event log —
- * same trade-off StatsService makes: simple and fast enough for the size of a personal library
- * app. As a consequence, a book's "started/finished reading" timestamp is its updatedAt, so any
- * edit to a book already in that status (fixing a typo, say) can resurface it in the feed.
- */
 @Service
 @RequiredArgsConstructor
 public class FeedService {

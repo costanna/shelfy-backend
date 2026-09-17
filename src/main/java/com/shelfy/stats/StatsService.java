@@ -41,10 +41,6 @@ public class StatsService {
                 .filter(book -> book.getStatus() == BookStatus.READING)
                 .count();
 
-        // Every completed read counts here, including re-reads archived in ReadEvent — a book
-        // you've re-read keeps showing its earlier finish months instead of losing them.
-        // finishedAt is required (it's what a "completion" means); startedAt isn't, same as
-        // before this merge — a READ book can have a finish date without a start date.
         List<BookReadingDuration> completions = new ArrayList<>();
 
         for (Book book : books) {
