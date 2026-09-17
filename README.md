@@ -125,7 +125,7 @@ mvn spring-boot:run
 | `MAIL_USERNAME` | — | Cuenta de Gmail que envía los correos |
 | `MAIL_PASSWORD` | — | [Contraseña de aplicación](https://myaccount.google.com/apppasswords) de esa cuenta (no la contraseña normal; requiere verificación en dos pasos activada) |
 | `MAIL_FROM` | el valor de `MAIL_USERNAME` | Remitente de los emails |
-| `REQUIRE_EMAIL_VERIFICATION` | `true` | Interruptor de emergencia: en `false`, las cuentas nacen ya verificadas y el login no depende del email (`forgot-password` sigue funcionando igual, no depende de esta variable) |
+| `REQUIRE_EMAIL_VERIFICATION` | `false` | Interruptor de emergencia: en `false`, las cuentas nacen ya verificadas y el login no depende del email (`forgot-password` sigue funcionando igual, no depende de esta variable) |
 | `DDL_AUTO` | `update` | Estrategia de esquema de Hibernate |
 | `PORT` | `8080` | Puerto HTTP (Render lo inyecta automáticamente) |
 
@@ -585,7 +585,7 @@ mvn spring-boot:run
 | `MAIL_USERNAME` | — | Gmail account that sends the emails |
 | `MAIL_PASSWORD` | — | [App password](https://myaccount.google.com/apppasswords) for that account (not the regular password; requires 2-step verification enabled) |
 | `MAIL_FROM` | value of `MAIL_USERNAME` | Sender of the emails |
-| `REQUIRE_EMAIL_VERIFICATION` | `true` | Emergency switch: when `false`, accounts are born already verified and login doesn't depend on email (`forgot-password` still works the same, unaffected by this variable) |
+| `REQUIRE_EMAIL_VERIFICATION` | `false` | Emergency switch: when `false`, accounts are born already verified and login doesn't depend on email (`forgot-password` still works the same, unaffected by this variable) |
 | `DDL_AUTO` | `update` | Hibernate schema strategy |
 | `PORT` | `8080` | HTTP port (Render injects this automatically) |
 
