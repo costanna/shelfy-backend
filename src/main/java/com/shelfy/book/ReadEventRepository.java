@@ -10,6 +10,8 @@ public interface ReadEventRepository extends JpaRepository<ReadEvent, Long> {
 
     List<ReadEvent> findByBookIdOrderByFinishedAtDesc(Long bookId);
 
+    List<ReadEvent> findByBookIdInOrderByFinishedAtDesc(List<Long> bookIds);
+
     void deleteByBookId(Long bookId);
 
     @Query("select r from ReadEvent r where r.book.owner.id = :ownerId")

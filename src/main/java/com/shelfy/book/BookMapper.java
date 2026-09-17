@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.util.Comparator;
+import java.util.List;
 
 @Component
 @RequiredArgsConstructor
@@ -15,7 +16,17 @@ public class BookMapper {
     private final CategoryMapper categoryMapper;
     private final ReadEventRepository readEventRepository;
 
+    /** For a single book: looks up its read history directly. */
     public BookResponse toResponse(Book book) {
+        return toResponse(book, readEventRepository.findByBookIdOrderByFinishedAtDesc(book.getId()));
+    }
+
+    /**
+     * For mapping a whole page of books: pass each book's read history already batch-fetched
+     * (see {@link ReadEventRepository#findByBookIdInOrderByFinishedAtDesc}), instead of one query
+     * per book.
+     */
+    public BookResponse toResponse(Book book, List<ReadEvent> readHistory) {
         return new BookResponse(
                 book.getId(),
                 book.getTitle(),
@@ -31,7 +42,7 @@ public class BookMapper {
                 book.getStatus(),
                 book.getStartedAt(),
                 book.getFinishedAt(),
-                readEventRepository.findByBookIdOrderByFinishedAtDesc(book.getId()).stream()
+                readHistory.stream()
                         .map(event -> new ReadEventResponse(event.getStartedAt(), event.getFinishedAt()))
                         .toList(),
                 book.getCategories().stream()

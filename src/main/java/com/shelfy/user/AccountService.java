@@ -1,11 +1,13 @@
 package com.shelfy.user;
 
 import com.shelfy.book.BookRepository;
+import com.shelfy.book.ReadEventRepository;
 import com.shelfy.category.CategoryRepository;
 import com.shelfy.common.exception.ResourceNotFoundException;
 import com.shelfy.follow.FollowRepository;
 import com.shelfy.goal.ReadingGoalRepository;
 import com.shelfy.note.NoteRepository;
+import com.shelfy.notification.NotificationRepository;
 import com.shelfy.readinglog.ReadingLogRepository;
 import com.shelfy.review.ReviewRepository;
 import com.shelfy.user.dto.DeleteAccountRequest;
@@ -28,6 +30,8 @@ public class AccountService {
     private final ReadingLogRepository readingLogRepository;
     private final ReadingGoalRepository readingGoalRepository;
     private final FollowRepository followRepository;
+    private final ReadEventRepository readEventRepository;
+    private final NotificationRepository notificationRepository;
     private final AvatarRepository avatarRepository;
     private final PasswordEncoder passwordEncoder;
 
@@ -44,6 +48,7 @@ public class AccountService {
         reviewRepository.deleteAll(reviewRepository.findByUserId(userId));
         noteRepository.deleteAll(noteRepository.findByUserId(userId));
         readingGoalRepository.deleteAll(readingGoalRepository.findByOwnerId(userId));
+        readEventRepository.deleteAll(readEventRepository.findByOwnerId(userId));
 
         bookRepository.deleteAll(bookRepository.findByOwnerId(userId));
 
@@ -52,6 +57,8 @@ public class AccountService {
         var followingAndFollowers = new LinkedHashSet<>(followRepository.findByFollowerIdOrderByCreatedAtDesc(userId));
         followingAndFollowers.addAll(followRepository.findByFollowedIdOrderByCreatedAtDesc(userId));
         followRepository.deleteAll(followingAndFollowers);
+
+        notificationRepository.deleteByRecipientIdOrActorId(userId);
 
         avatarRepository.findById(userId).ifPresent(avatarRepository::delete);
 

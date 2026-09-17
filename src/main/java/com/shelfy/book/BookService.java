@@ -11,6 +11,7 @@ import com.shelfy.note.NoteRepository;
 import com.shelfy.review.ReviewRepository;
 import com.shelfy.user.UserService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
@@ -18,7 +19,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -39,7 +43,17 @@ public class BookService {
                 .and(BookSpecifications.hasCategory(filter.categoryId()))
                 .and(BookSpecifications.matchesText(filter.query()));
 
-        return PageResponse.from(bookRepository.findAll(spec, pageable), bookMapper::toResponse);
+        Page<Book> page = bookRepository.findAll(spec, pageable);
+
+        // Batch-fetch read history for the whole page instead of one query per book.
+        List<Long> bookIds = page.getContent().stream().map(Book::getId).toList();
+        Map<Long, List<ReadEvent>> readHistoryByBookId = bookIds.isEmpty()
+                ? Map.of()
+                : readEventRepository.findByBookIdInOrderByFinishedAtDesc(bookIds).stream()
+                        .collect(Collectors.groupingBy(event -> event.getBook().getId()));
+
+        return PageResponse.from(page, book -> bookMapper.toResponse(
+                book, readHistoryByBookId.getOrDefault(book.getId(), List.of())));
     }
 
     @Transactional(readOnly = true)
@@ -99,6 +113,7 @@ public class BookService {
             }
         } else if (previousStatus == BookStatus.READ || previousStatus == BookStatus.READING) {
             book.setStatus(BookStatus.WANT_TO_READ);
+            book.setCurrentPage(null);
         }
 
         if (book.getStatus() != BookStatus.READING || !Objects.equals(previousStartedAt, request.startedAt())) {
@@ -179,6 +194,19 @@ public class BookService {
         book.setSeries(request.series());
         book.setSeriesPosition(request.seriesPosition());
         book.setFormat(request.format());
+
+        // Moving a finished book off READ this way (e.g. flipping the status dropdown back to
+        // "Reading" on the full edit form) is the same move as reread()/updateReadingDates():
+        // archive the read it had before overwriting it, so it isn't lost from the stats.
+        if (book.getStatus() == BookStatus.READ && book.getFinishedAt() != null
+                && request.status() != BookStatus.READ) {
+            readEventRepository.save(ReadEvent.builder()
+                    .book(book)
+                    .startedAt(book.getStartedAt())
+                    .finishedAt(book.getFinishedAt())
+                    .build());
+        }
+
         book.setStatus(request.status());
         book.setStartedAt(request.startedAt());
         book.setFinishedAt(request.finishedAt());
