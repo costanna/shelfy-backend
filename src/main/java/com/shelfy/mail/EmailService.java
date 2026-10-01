@@ -1,21 +1,30 @@
 package com.shelfy.mail;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.mail.MailException;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
 
 import java.util.List;
+import java.util.Map;
 
+/**
+ * Envía los emails transaccionales de Shelfy a través de la API HTTP de Resend
+ * (https://resend.com), en vez de SMTP directo: Render bloquea los puertos SMTP
+ * salientes (25/465/587) en su plan free desde sep-2025, y el corte es silencioso
+ * (la conexión se cuelga en vez de fallar), lo que bloqueaba la petición HTTP
+ * entera de register/forgot-password durante minutos. La API de Resend solo
+ * necesita el puerto 443 (HTTPS), que no está bloqueado.
+ */
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class EmailService {
 
-    private final JavaMailSender mailSender;
+    private static final String RESEND_API_URL = "https://api.resend.com";
+
+    private final RestClient restClient;
 
     @Value("${shelfy.mail.enabled}")
     private boolean mailEnabled;
@@ -25,6 +34,13 @@ public class EmailService {
 
     @Value("${shelfy.frontend-url}")
     private String frontendUrl;
+
+    public EmailService(@Value("${shelfy.mail.resend-api-key:}") String resendApiKey) {
+        this.restClient = RestClient.builder()
+                .baseUrl(RESEND_API_URL)
+                .defaultHeader("Authorization", "Bearer " + resendApiKey)
+                .build();
+    }
 
     public void sendVerificationEmail(String to, String name, String token) {
         String link = frontendUrl + "/verify-email?token=" + token;
@@ -82,15 +98,19 @@ public class EmailService {
             return;
         }
 
-        SimpleMailMessage message = new SimpleMailMessage();
-        message.setFrom(fromAddress);
-        message.setTo(to);
-        message.setSubject(subject);
-        message.setText(body);
-
         try {
-            mailSender.send(message);
-        } catch (MailException ex) {
+            restClient.post()
+                    .uri("/emails")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(Map.of(
+                            "from", fromAddress,
+                            "to", List.of(to),
+                            "subject", subject,
+                            "text", body
+                    ))
+                    .retrieve()
+                    .toBodilessEntity();
+        } catch (RestClientException ex) {
             log.warn("No se pudo enviar el correo a {} (\"{}\"): {}", to, subject, ex.getMessage());
         }
     }

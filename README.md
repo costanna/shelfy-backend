@@ -120,11 +120,8 @@ mvn spring-boot:run
 | `CORS_ALLOWED_ORIGINS` | `http://localhost:4200` | Orígenes permitidos, separados por comas |
 | `FRONTEND_URL` | `http://localhost:4200` | Base de los enlaces de verificación/recuperación en los emails |
 | `MAIL_ENABLED` | `false` | Si es `false`, no se envía ningún email de verdad: el enlace se deja en el log (así se puede probar el flujo completo en local sin credenciales) |
-| `MAIL_HOST` | `smtp.gmail.com` | Servidor SMTP |
-| `MAIL_PORT` | `587` | Puerto SMTP |
-| `MAIL_USERNAME` | — | Cuenta de Gmail que envía los correos |
-| `MAIL_PASSWORD` | — | [Contraseña de aplicación](https://myaccount.google.com/apppasswords) de esa cuenta (no la contraseña normal; requiere verificación en dos pasos activada) |
-| `MAIL_FROM` | el valor de `MAIL_USERNAME` | Remitente de los emails |
+| `RESEND_API_KEY` | — | API key de [Resend](https://resend.com) (envío por HTTPS, no SMTP — Render bloquea los puertos SMTP salientes en el plan Free) |
+| `MAIL_FROM` | `onboarding@resend.dev` | Remitente de los emails. El valor por defecto es el remitente de pruebas de Resend, que solo entrega al email con el que te registraste en Resend; para enviar a cualquier destinatario hace falta verificar un dominio propio en Resend y usar una dirección de ese dominio |
 | `REQUIRE_EMAIL_VERIFICATION` | `false` | Interruptor de emergencia: en `false`, las cuentas nacen ya verificadas y el login no depende del email (`forgot-password` sigue funcionando igual, no depende de esta variable) |
 | `DDL_AUTO` | `update` | Estrategia de esquema de Hibernate |
 | `PORT` | `8080` | Puerto HTTP (Render lo inyecta automáticamente) |
@@ -421,7 +418,7 @@ backend en Render como Web Service.
 
 **Opción rápida — Blueprint**: el repo incluye [`render.yaml`](./render.yaml). En el dashboard:
 **New → Blueprint** → conecta `shelfy-backend`. Te pedirá `DB_HOST`, `DB_NAME`, `DB_USER`,
-`DB_PASSWORD` (los datos de conexión de Neon) y `MAIL_USERNAME`/`MAIL_PASSWORD` (ver abajo);
+`DB_PASSWORD` (los datos de conexión de Neon) y `RESEND_API_KEY` (ver abajo);
 `DB_PORT`, `DB_SSLMODE=require`, `JWT_SECRET`, `MAIL_ENABLED` y `FRONTEND_URL` ya vienen resueltos,
 y `CORS_ALLOWED_ORIGINS` apunta al frontend en Vercel.
 
@@ -435,16 +432,24 @@ El plan Free de Render duerme el servicio tras ~15 min sin uso (la primera petic
 tardar cerca de un minuto); Neon hiberna la base de datos de forma parecida y se despierta sola en
 la siguiente conexión.
 
-**Enviar emails de verdad (Gmail):**
+**Enviar emails de verdad (Resend):**
 
-1. Activa la verificación en dos pasos en la cuenta de Gmail que vaya a enviar los correos.
-2. Genera una [contraseña de aplicación](https://myaccount.google.com/apppasswords) (16
-   caracteres, distinta de tu contraseña normal).
-3. En Render (*Environment* del servicio), define `MAIL_USERNAME` con esa cuenta de Gmail y
-   `MAIL_PASSWORD` con la contraseña de aplicación (**nunca la contraseña normal de la cuenta**),
-   y cambia `MAIL_ENABLED` a `true` — por defecto viene en `false` (registro y recuperación
-   funcionan igual, pero sin mandar el correo de verdad) para no dejar el registro roto en
-   producción hasta que las credenciales estén puestas.
+Los correos se envían vía la API HTTP de [Resend](https://resend.com), no por SMTP directo:
+Render bloquea los puertos SMTP salientes (25/465/587) en su plan Free desde sep-2025 (el corte es
+silencioso, así que un SMTP directo se queda colgado en vez de fallar), y la API de Resend solo
+necesita HTTPS (443), que sí funciona.
+
+1. Crea una cuenta gratis en [resend.com](https://resend.com) (incluye 3.000 emails/mes gratis) y
+   genera una API key.
+2. En Render (*Environment* del servicio), define `RESEND_API_KEY` con esa clave y cambia
+   `MAIL_ENABLED` a `true` — por defecto viene en `false` (registro y recuperación funcionan
+   igual, pero sin mandar el correo de verdad) para no dejar el registro roto en producción hasta
+   que la clave esté puesta.
+3. Sin verificar un dominio propio en Resend, solo puedes usar su remitente de pruebas
+   `onboarding@resend.dev` (el valor por defecto de `MAIL_FROM`), y con ese remitente **Resend solo
+   entrega al email con el que te registraste** — no a usuarios reales. Para enviar a cualquier
+   destinatario hace falta verificar un dominio propio en el panel de Resend (añadir unos registros
+   DNS) y apuntar `MAIL_FROM` a una dirección de ese dominio.
 4. En local, deja `MAIL_ENABLED` sin definir (por defecto `false`): los enlaces de verificación y
    de recuperación se escriben en el log del servidor en vez de enviarse, para poder probar el
    flujo entero sin credenciales reales.
@@ -580,11 +585,8 @@ mvn spring-boot:run
 | `CORS_ALLOWED_ORIGINS` | `http://localhost:4200` | Allowed origins, comma-separated |
 | `FRONTEND_URL` | `http://localhost:4200` | Base for the verification/recovery links in emails |
 | `MAIL_ENABLED` | `false` | If `false`, no real email is sent: the link is left in the log instead (so the whole flow can be tested locally without credentials) |
-| `MAIL_HOST` | `smtp.gmail.com` | SMTP server |
-| `MAIL_PORT` | `587` | SMTP port |
-| `MAIL_USERNAME` | — | Gmail account that sends the emails |
-| `MAIL_PASSWORD` | — | [App password](https://myaccount.google.com/apppasswords) for that account (not the regular password; requires 2-step verification enabled) |
-| `MAIL_FROM` | value of `MAIL_USERNAME` | Sender of the emails |
+| `RESEND_API_KEY` | — | API key for [Resend](https://resend.com) (sent over HTTPS, not SMTP — Render blocks outbound SMTP ports on the Free plan) |
+| `MAIL_FROM` | `onboarding@resend.dev` | Sender of the emails. The default is Resend's test sender, which only delivers to the email you signed up to Resend with; to send to any recipient you need to verify your own domain in Resend and use an address on that domain |
 | `REQUIRE_EMAIL_VERIFICATION` | `false` | Emergency switch: when `false`, accounts are born already verified and login doesn't depend on email (`forgot-password` still works the same, unaffected by this variable) |
 | `DDL_AUTO` | `update` | Hibernate schema strategy |
 | `PORT` | `8080` | HTTP port (Render injects this automatically) |
@@ -876,7 +878,7 @@ as a Web Service.
 
 **Quick option — Blueprint**: the repo includes [`render.yaml`](./render.yaml). In the dashboard:
 **New → Blueprint** → connect `shelfy-backend`. It will ask for `DB_HOST`, `DB_NAME`, `DB_USER`,
-`DB_PASSWORD` (Neon's connection details) and `MAIL_USERNAME`/`MAIL_PASSWORD` (see below);
+`DB_PASSWORD` (Neon's connection details) and `RESEND_API_KEY` (see below);
 `DB_PORT`, `DB_SSLMODE=require`, `JWT_SECRET`, `MAIL_ENABLED` and `FRONTEND_URL` are already
 resolved, and `CORS_ALLOWED_ORIGINS` points at the frontend on Vercel.
 
@@ -890,16 +892,23 @@ Render's Free plan puts the service to sleep after ~15 min of inactivity (the fi
 afterward can take close to a minute); Neon hibernates the database similarly and wakes up on its
 own on the next connection.
 
-**Sending real emails (Gmail):**
+**Sending real emails (Resend):**
 
-1. Enable 2-step verification on the Gmail account that will send the emails.
-2. Generate an [app password](https://myaccount.google.com/apppasswords) (16 characters,
-   different from your regular password).
-3. On Render (the service's *Environment*), set `MAIL_USERNAME` to that Gmail account and
-   `MAIL_PASSWORD` to the app password (**never the account's regular password**), and switch
+Emails are sent through [Resend](https://resend.com)'s HTTP API, not direct SMTP: Render blocks
+outbound SMTP ports (25/465/587) on its Free plan since Sep 2025 (silently, so a direct SMTP
+connection just hangs instead of failing), and Resend's API only needs HTTPS (443), which works
+fine.
+
+1. Create a free Resend account (3,000 emails/month free) and generate an API key.
+2. On Render (the service's *Environment*), set `RESEND_API_KEY` to that key and switch
    `MAIL_ENABLED` to `true` — it defaults to `false` (registration and recovery still work, just
    without actually sending the email) so as not to leave registration broken in production until
-   the credentials are in place.
+   the key is in place.
+3. Without verifying your own domain in Resend, you can only use their test sender
+   `onboarding@resend.dev` (the default for `MAIL_FROM`), and with that sender **Resend only
+   delivers to the email you signed up with** — not to real users. To send to any recipient,
+   verify your own domain in the Resend dashboard (add a few DNS records) and point `MAIL_FROM` to
+   an address on that domain.
 4. Locally, leave `MAIL_ENABLED` unset (defaults to `false`): verification and recovery links are
    written to the server log instead of being sent, so the whole flow can be tested without real
    credentials.
