@@ -4,6 +4,7 @@ import com.shelfy.auth.dto.AuthResponse;
 import com.shelfy.auth.dto.EmailRequest;
 import com.shelfy.auth.dto.LoginRequest;
 import com.shelfy.auth.dto.RegisterRequest;
+import com.shelfy.auth.dto.RegisterResponse;
 import com.shelfy.auth.dto.ResetPasswordRequest;
 import com.shelfy.common.dto.MessageResponse;
 import jakarta.validation.Valid;
@@ -26,7 +27,7 @@ public class AuthController {
 
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
-    public MessageResponse register(@Valid @RequestBody RegisterRequest request) {
+    public RegisterResponse register(@Valid @RequestBody RegisterRequest request) {
         return authService.register(request);
     }
 

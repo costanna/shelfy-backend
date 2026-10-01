@@ -4,6 +4,7 @@ import com.shelfy.auth.dto.AuthResponse;
 import com.shelfy.auth.dto.EmailRequest;
 import com.shelfy.auth.dto.LoginRequest;
 import com.shelfy.auth.dto.RegisterRequest;
+import com.shelfy.auth.dto.RegisterResponse;
 import com.shelfy.auth.dto.ResetPasswordRequest;
 import com.shelfy.category.CategoryService;
 import com.shelfy.common.dto.MessageResponse;
@@ -49,20 +50,11 @@ public class AuthService {
     private final EmailService emailService;
     private final CategoryService categoryService;
 
-    // ⚠️ VERIFICACIÓN POR EMAIL DESACTIVADA A PROPÓSITO — NO BORRAR ESTE BLOQUE.
-    // El envío de emails todavía no funciona en producción, así que se ha forzado
-    // a "false" directamente en el código (no solo con la variable de entorno
-    // REQUIRE_EMAIL_VERIFICATION), para que no dependa de la configuración de Render.
-    // Para reactivar la verificación en el futuro:
-    //   1. Descomenta la línea @Value de abajo y borra la inicialización "= false".
-    //   2. Descomenta los bloques marcados con el mismo aviso en register() y login().
-    // No elimines este campo ni los métodos verifyEmail()/resendVerification():
-    // AuthController y EmailService siguen dependiendo de ellos para compilar.
-    // @Value("${shelfy.registration.require-email-verification}")
-    private boolean requireEmailVerification = false;
+    @Value("${shelfy.registration.require-email-verification}")
+    private boolean requireEmailVerification;
 
     @Transactional
-    public MessageResponse register(RegisterRequest request) {
+    public RegisterResponse register(RegisterRequest request) {
         if (userRepository.existsByEmailIgnoreCase(request.email())) {
             throw new DuplicateResourceException("Ya existe una cuenta con ese email");
         }
@@ -73,22 +65,20 @@ public class AuthService {
                 .name(request.name())
                 .emailVerified(!requireEmailVerification);
 
-        // ⚠️ NO BORRAR — rama de envío de email de verificación, desactivada mientras
-        // requireEmailVerification esté forzado a false más arriba.
-        // if (requireEmailVerification) {
-        //     String token = UUID.randomUUID().toString();
-        //     builder.verificationToken(token)
-        //             .verificationTokenExpiresAt(Instant.now().plus(VERIFICATION_TOKEN_TTL));
-        //
-        //     User user = userRepository.save(builder.build());
-        //     categoryService.seedMissingDefaults(user);
-        //     emailService.sendVerificationEmail(user.getEmail(), user.getName(), token);
-        //     return new MessageResponse("Te hemos enviado un email para verificar tu cuenta.");
-        // }
+        if (requireEmailVerification) {
+            String token = UUID.randomUUID().toString();
+            builder.verificationToken(token)
+                    .verificationTokenExpiresAt(Instant.now().plus(VERIFICATION_TOKEN_TTL));
+
+            User user = userRepository.save(builder.build());
+            categoryService.seedMissingDefaults(user);
+            emailService.sendVerificationEmail(user.getEmail(), user.getName(), token);
+            return new RegisterResponse("Te hemos enviado un email para verificar tu cuenta.", true);
+        }
 
         User user = userRepository.save(builder.build());
         categoryService.seedMissingDefaults(user);
-        return new MessageResponse("Cuenta creada. Ya puedes iniciar sesión.");
+        return new RegisterResponse("Cuenta creada. Ya puedes iniciar sesión.", false);
     }
 
     @Transactional
@@ -99,11 +89,9 @@ public class AuthService {
         UserPrincipal principal = (UserPrincipal) authentication.getPrincipal();
         User user = userRepository.getReferenceById(principal.getId());
 
-        // ⚠️ NO BORRAR — comprobación de cuenta verificada, desactivada mientras
-        // requireEmailVerification esté forzado a false más arriba.
-        // if (requireEmailVerification && !user.isEmailVerified()) {
-        //     throw new EmailNotVerifiedException();
-        // }
+        if (requireEmailVerification && !user.isEmailVerified()) {
+            throw new EmailNotVerifiedException();
+        }
 
         categoryService.seedMissingDefaults(user);
 
