@@ -1,6 +1,7 @@
 package com.shelfy.config;
 
 import com.shelfy.security.JwtAuthenticationFilter;
+import com.shelfy.security.LoginRateLimitFilter;
 import com.shelfy.security.RestAuthenticationEntryPoint;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -23,6 +24,7 @@ import org.springframework.web.cors.CorsConfigurationSource;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final LoginRateLimitFilter loginRateLimitFilter;
     private final RestAuthenticationEntryPoint authenticationEntryPoint;
     private final CorsConfigurationSource corsConfigurationSource;
 
@@ -41,6 +43,7 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(loginRateLimitFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();
     }
 
