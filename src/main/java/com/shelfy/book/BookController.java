@@ -3,6 +3,7 @@ package com.shelfy.book;
 import com.shelfy.book.dto.BookImportResult;
 import com.shelfy.book.dto.BookRequest;
 import com.shelfy.book.dto.BookResponse;
+import com.shelfy.book.dto.BookStatusCountsResponse;
 import com.shelfy.book.dto.UpdateProgressRequest;
 import com.shelfy.book.dto.UpdateReadingDatesRequest;
 import com.shelfy.common.dto.PageResponse;
@@ -40,6 +41,11 @@ public class BookController {
             @PageableDefault(size = 12, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
         return bookService.search(principal.getId(), new BookFilter(status, categoryId, query), pageable);
+    }
+
+    @GetMapping("/counts")
+    public BookStatusCountsResponse counts(@AuthenticationPrincipal UserPrincipal principal) {
+        return bookService.getStatusCounts(principal.getId());
     }
 
     @GetMapping("/{id}")

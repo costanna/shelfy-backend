@@ -2,6 +2,7 @@ package com.shelfy.book;
 
 import com.shelfy.book.dto.BookRequest;
 import com.shelfy.book.dto.BookResponse;
+import com.shelfy.book.dto.BookStatusCountsResponse;
 import com.shelfy.book.dto.UpdateProgressRequest;
 import com.shelfy.book.dto.UpdateReadingDatesRequest;
 import com.shelfy.category.CategoryService;
@@ -19,6 +20,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
@@ -293,6 +295,35 @@ class BookServiceTest {
 
         assertThatThrownBy(() -> service.findOwned(OWNER_ID, BOOK_ID))
                 .isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    @Test
+    void getStatusCounts_mapsEachStatusAndDefaultsMissingOnesToZero() {
+        when(bookRepository.countByOwnerIdGroupedByStatus(OWNER_ID)).thenReturn(List.of(
+                statusCount(BookStatus.READING, 3),
+                statusCount(BookStatus.READ, 7)));
+
+        BookStatusCountsResponse counts = service.getStatusCounts(OWNER_ID);
+
+        assertThat(counts.reading()).isEqualTo(3);
+        assertThat(counts.read()).isEqualTo(7);
+        assertThat(counts.wantToRead()).isZero();
+        assertThat(counts.wantToBuy()).isZero();
+        assertThat(counts.total()).isEqualTo(10);
+    }
+
+    private BookRepository.BookStatusCount statusCount(BookStatus status, long total) {
+        return new BookRepository.BookStatusCount() {
+            @Override
+            public BookStatus getStatus() {
+                return status;
+            }
+
+            @Override
+            public long getTotal() {
+                return total;
+            }
+        };
     }
 
     @Test

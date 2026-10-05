@@ -2,6 +2,7 @@ package com.shelfy.book;
 
 import com.shelfy.book.dto.BookRequest;
 import com.shelfy.book.dto.BookResponse;
+import com.shelfy.book.dto.BookStatusCountsResponse;
 import com.shelfy.book.dto.UpdateProgressRequest;
 import com.shelfy.book.dto.UpdateReadingDatesRequest;
 import com.shelfy.category.CategoryService;
@@ -53,6 +54,19 @@ public class BookService {
 
         return PageResponse.from(page, book -> bookMapper.toResponse(
                 book, readHistoryByBookId.getOrDefault(book.getId(), List.of())));
+    }
+
+    @Transactional(readOnly = true)
+    public BookStatusCountsResponse getStatusCounts(Long ownerId) {
+        Map<BookStatus, Long> counts = bookRepository.countByOwnerIdGroupedByStatus(ownerId).stream()
+                .collect(Collectors.toMap(BookRepository.BookStatusCount::getStatus,
+                        BookRepository.BookStatusCount::getTotal));
+
+        return new BookStatusCountsResponse(
+                counts.getOrDefault(BookStatus.WANT_TO_READ, 0L),
+                counts.getOrDefault(BookStatus.READING, 0L),
+                counts.getOrDefault(BookStatus.READ, 0L),
+                counts.getOrDefault(BookStatus.WANT_TO_BUY, 0L));
     }
 
     @Transactional(readOnly = true)
