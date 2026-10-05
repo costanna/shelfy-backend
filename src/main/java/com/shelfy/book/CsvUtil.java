@@ -55,7 +55,12 @@ final class CsvUtil {
                 }
                 currentRow.add(field.toString());
                 field.setLength(0);
-                if (rowHasContent || !currentRow.isEmpty()) {
+                // currentRow ya no está vacío nunca aquí (se le acaba de añadir el campo
+                // de arriba), así que "|| !currentRow.isEmpty()" sería siempre cierto y
+                // anularía por completo el filtro de líneas en blanco: una línea vacía
+                // (p. ej. una línea extra al final de un CSV exportado desde Excel/Sheets)
+                // generaba una fila fantasma de un solo campo vacío en vez de ignorarse.
+                if (rowHasContent) {
                     rows.add(currentRow);
                 }
                 currentRow = new ArrayList<>();
