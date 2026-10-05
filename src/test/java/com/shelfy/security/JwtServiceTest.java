@@ -52,8 +52,13 @@ class JwtServiceTest {
     void extractUserId_throwsWhenTheSignatureDoesNotMatch() {
         JwtService service = service(60_000);
         String token = service.generateToken(1L, "a@b.com", 0);
-        String tamperedToken = token.substring(0, token.length() - 1)
-                + (token.charAt(token.length() - 1) == 'A' ? 'B' : 'A');
+        // Se toca el penúltimo carácter (no el último): en base64url sin padding, el último
+        // carácter de una firma HS256 (32 bytes) solo codifica bits de relleno no usados al
+        // decodificar, así que cambiarlo podía no alterar la firma real y volver el test flaky.
+        int tamperIndex = token.length() - 2;
+        String tamperedToken = token.substring(0, tamperIndex)
+                + (token.charAt(tamperIndex) == 'A' ? 'B' : 'A')
+                + token.substring(tamperIndex + 1);
 
         assertThatThrownBy(() -> service.extractUserId(tamperedToken)).isInstanceOf(JwtException.class);
     }
