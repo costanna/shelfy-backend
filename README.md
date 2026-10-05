@@ -432,6 +432,16 @@ El plan Free de Render duerme el servicio tras ~15 min sin uso (la primera petic
 tardar cerca de un minuto); Neon hiberna la base de datos de forma parecida y se despierta sola en
 la siguiente conexión.
 
+**Evitar que se duerma**: el repo incluye [`.github/workflows/keep-alive.yml`](.github/workflows/keep-alive.yml),
+que hace ping a `/actuator/health` cada 10 min. Aviso importante: el `schedule` de GitHub Actions es
+*best-effort* (lo dice la propia documentación de GitHub), no un cron garantizado — puede tardar
+horas en empezar a dispararse solo, o fallar algún ciclo sin más. Si notas que el "despertar" vuelve
+a tardar, comprueba primero si el workflow se está ejecutando (`gh run list --workflow=keep-alive.yml`
+o la pestaña Actions del repo). Si lleva mucho rato sin correr, la alternativa más fiable es un
+pinger externo gratuito como [cron-job.org](https://cron-job.org) o [UptimeRobot](https://uptimerobot.com)
+apuntando a `https://shelfy-backend-prw2.onrender.com/actuator/health` cada 10-14 min — estos
+servicios están pensados justo para esto y no dependen del scheduler de GitHub.
+
 **Enviar emails de verdad (Resend):**
 
 Los correos se envían vía la API HTTP de [Resend](https://resend.com), no por SMTP directo:
@@ -891,6 +901,15 @@ resolved, and `CORS_ALLOWED_ORIGINS` points at the frontend on Vercel.
 Render's Free plan puts the service to sleep after ~15 min of inactivity (the first request
 afterward can take close to a minute); Neon hibernates the database similarly and wakes up on its
 own on the next connection.
+
+**Keeping it from sleeping**: the repo includes [`.github/workflows/keep-alive.yml`](.github/workflows/keep-alive.yml),
+which pings `/actuator/health` every 10 min. Important caveat: GitHub Actions' `schedule` trigger is
+*best-effort* (GitHub's own docs say so), not a guaranteed cron — it can take hours to start firing on
+its own, or skip a cycle. If wake-ups start taking long again, first check whether the workflow is
+actually running (`gh run list --workflow=keep-alive.yml` or the repo's Actions tab). If it's been
+quiet for a while, the more reliable fallback is a free external pinger like [cron-job.org](https://cron-job.org)
+or [UptimeRobot](https://uptimerobot.com) hitting `https://shelfy-backend-prw2.onrender.com/actuator/health`
+every 10-14 min — those services are built for exactly this and don't depend on GitHub's scheduler.
 
 **Sending real emails (Resend):**
 

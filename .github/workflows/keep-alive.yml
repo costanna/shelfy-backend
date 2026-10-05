@@ -6,7 +6,12 @@ name: Keep backend awake
 # público, así que los minutos de GitHub Actions no tienen límite.
 on:
   schedule:
-    - cron: "*/10 * * * *"
+    # GitHub avisa de que los minutos "redondos" (:00, :10...) son los de
+    # más carga en su sistema y los que más se retrasan; con un offset se
+    # evita caer justo ahí. Aun así, esto es "best effort" por parte de
+    # GitHub, no un cron real garantizado — ver README para la alternativa
+    # más fiable (un pinger externo) si esto sigue sin dispararse solo.
+    - cron: "4,14,24,34,44,54 * * * *"
   workflow_dispatch:
 
 jobs:
