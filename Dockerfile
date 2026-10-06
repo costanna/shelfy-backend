@@ -15,4 +15,9 @@ COPY --from=build /app/target/*.jar app.jar
 USER shelfy
 
 EXPOSE 8080
-ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75.0", "-jar", "app.jar"]
+# JVM ajustada per a arrencades ràpides al pla free (0,5 CPU / 512 MB):
+# - TieredStopAtLevel=1: només compilador C1, arrencada molt més ràpida
+#   (el rendiment pic és menor, però sobra per a aquest trànsit).
+# - UseSerialGC: GC d'un sol fil, menys petjada i menys CPU a l'arrencada.
+# - file:/dev/./urandom: evita bloquejos d'entropia generant el JWT/SecureRandom.
+ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75.0", "-XX:TieredStopAtLevel=1", "-XX:+UseSerialGC", "-Djava.security.egd=file:/dev/./urandom", "-jar", "app.jar"]

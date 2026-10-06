@@ -476,15 +476,31 @@ El plan Free de Render duerme el servicio tras ~15 min sin uso (la primera petic
 tardar cerca de un minuto); Neon hiberna la base de datos de forma parecida y se despierta sola en
 la siguiente conexión.
 
-**Evitar que se duerma**: el repo incluye [`.github/workflows/keep-alive.yml`](.github/workflows/keep-alive.yml),
-que hace ping a `/actuator/health` cada 10 min. Aviso importante: el `schedule` de GitHub Actions es
-*best-effort* (lo dice la propia documentación de GitHub), no un cron garantizado — puede tardar
-horas en empezar a dispararse solo, o fallar algún ciclo sin más. Si notas que el "despertar" vuelve
-a tardar, comprueba primero si el workflow se está ejecutando (`gh run list --workflow=keep-alive.yml`
-o la pestaña Actions del repo). Si lleva mucho rato sin correr, la alternativa más fiable es un
-pinger externo gratuito como [cron-job.org](https://cron-job.org) o [UptimeRobot](https://uptimerobot.com)
-apuntando a `https://shelfy-backend-prw2.onrender.com/actuator/health` cada 10-14 min — estos
-servicios están pensados justo para esto y no dependen del scheduler de GitHub.
+**Evitar que se duerma**: Render free duerme el servicio tras ~15 min sin tráfico y
+despertarlo cuesta ~1 min (arrancar el contenedor + la JVM de Spring). Hay tres capas,
+de más a menos eficaz:
+
+1. **Pinger externo cada 5 min (lo que más se nota, gratis)**: crea un monitor HTTP
+   gratuito en [UptimeRobot](https://uptimerobot.com) (plan free: intervalo mínimo de
+   5 min) apuntando a `https://shelfy-backend-prw2.onrender.com/actuator/health`.
+   Con un ping cada 5 min el servicio no llega a dormirse nunca. El ping a `/health`
+   además abre una conexión a la base de datos (el chequeo incluye a Neon), así que
+   mantiene despiertas las dos piezas que tardaban en arrancar. Este paso solo ya
+   elimina el problema en la práctica.
+2. **El workflow [`keep-alive.yml`](.github/workflows/keep-alive.yml)** (cada 10 min)
+   como red de seguridad. Aviso importante: el `schedule` de GitHub Actions es
+   *best-effort*, no un cron garantizado — puede tardar horas en empezar a dispararse
+   solo, o fallar algún ciclo. Si el "despertar" vuelve a tardar, comprueba si se está
+   ejecutando (`gh run list --workflow=keep-alive.yml` o la pestaña Actions).
+   Alternativa equivalente al pinger: [cron-job.org](https://cron-job.org) cada 10-14 min.
+3. **Arrencada más rápida cuando sí se duerme**: la imagen Docker lleva la JVM ajustada
+   para el plan free (`TieredStopAtLevel=1` + `UseSerialGC` + `urandom`), que recorta el
+   arranque en frío de forma notable frente a los valores por defecto.
+
+Si ni así basta (picos de ~1 min en frío), la única solución real es salir del free:
+el plan Starter de Render (~7 $/mes) no duerme el servicio, o un VPS *always-free*
+(como Oracle Cloud) que tampoco duerme — pero eso ya es infraestructura de pago
+(o con tarjeta) y mantenimiento propio.
 
 **Enviar emails de verdad (Resend):**
 
@@ -988,14 +1004,26 @@ Render's Free plan puts the service to sleep after ~15 min of inactivity (the fi
 afterward can take close to a minute); Neon hibernates the database similarly and wakes up on its
 own on the next connection.
 
-**Keeping it from sleeping**: the repo includes [`.github/workflows/keep-alive.yml`](.github/workflows/keep-alive.yml),
-which pings `/actuator/health` every 10 min. Important caveat: GitHub Actions' `schedule` trigger is
-*best-effort* (GitHub's own docs say so), not a guaranteed cron — it can take hours to start firing on
-its own, or skip a cycle. If wake-ups start taking long again, first check whether the workflow is
-actually running (`gh run list --workflow=keep-alive.yml` or the repo's Actions tab). If it's been
-quiet for a while, the more reliable fallback is a free external pinger like [cron-job.org](https://cron-job.org)
-or [UptimeRobot](https://uptimerobot.com) hitting `https://shelfy-backend-prw2.onrender.com/actuator/health`
-every 10-14 min — those services are built for exactly this and don't depend on GitHub's scheduler.
+**Keeping it from sleeping**: Render Free sleeps the service after ~15 min without traffic,
+and waking it costs ~1 min (container + Spring JVM). Three layers, most to least effective:
+
+1. **External pinger every 5 min (the one you'll actually notice, free)**: create a free
+   HTTP monitor at [UptimeRobot](https://uptimerobot.com) (free plan: 5-min minimum interval)
+   pointing at `https://shelfy-backend-prw2.onrender.com/actuator/health`. With a ping every
+   5 min the service never falls asleep. The `/health` ping also opens a database connection
+   (the check includes Neon), so it keeps awake both pieces that were slow to start. This step
+   alone removes the problem in practice.
+2. The [`keep-alive.yml`](.github/workflows/keep-alive.yml) workflow (every 10 min) as a
+   safety net. Important caveat: GitHub Actions' `schedule` trigger is *best-effort*, not a
+   guaranteed cron — it can take hours to start firing on its own, or skip a cycle. An
+   equivalent alternative to the pinger: [cron-job.org](https://cron-job.org) every 10-14 min.
+3. **Faster boot when it does sleep**: the Docker image tunes the JVM for the free tier
+   (`TieredStopAtLevel=1` + `UseSerialGC` + `urandom`), which cuts cold-start time
+   noticeably versus the defaults.
+
+If even that isn't enough (~1 min spikes on cold boot), the only real fix is leaving free:
+Render's Starter plan (~$7/mo) never sleeps, or an *always-free* VPS (like Oracle Cloud)
+that doesn't sleep either — but that's paid (or card-backed) infra with its own upkeep.
 
 **Sending real emails (Resend):**
 
