@@ -1,6 +1,7 @@
 package com.shelfy.book;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -16,4 +17,8 @@ public interface ReadEventRepository extends JpaRepository<ReadEvent, Long> {
 
     @Query("select r from ReadEvent r join fetch r.book b where b.owner.id = :ownerId")
     List<ReadEvent> findByOwnerId(@Param("ownerId") Long ownerId);
+
+    @Modifying
+    @Query("delete from ReadEvent r where r.book.owner.id = :ownerId")
+    void deleteByOwnerId(@Param("ownerId") Long ownerId);
 }

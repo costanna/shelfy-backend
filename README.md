@@ -123,6 +123,9 @@ mvn spring-boot:run
 | `RESEND_API_KEY` | — | API key de [Resend](https://resend.com) (envío por HTTPS, no SMTP — Render bloquea los puertos SMTP salientes en el plan Free) |
 | `MAIL_FROM` | `onboarding@resend.dev` | Remitente de los emails. El valor por defecto es el remitente de pruebas de Resend, que solo entrega al email con el que te registraste en Resend; para enviar a cualquier destinatario hace falta verificar un dominio propio en Resend y usar una dirección de ese dominio |
 | `REQUIRE_EMAIL_VERIFICATION` | `false` | Interruptor de emergencia: en `false`, las cuentas nacen ya verificadas y el login no depende del email (`forgot-password` sigue funcionando igual, no depende de esta variable) |
+| `VAPID_PUBLIC_KEY` | — | Clave pública VAPID para Web Push (`npx web-push generate-vapid-keys`). Sin ella no se envían push |
+| `VAPID_PRIVATE_KEY` | — | Clave privada VAPID (solo en el servidor, nunca en el frontend) |
+| `VAPID_SUBJECT` | `mailto:shelfy@example.com` | Contacto VAPID (`mailto:` o URL) |
 | `DDL_AUTO` | `update` | Estrategia de esquema de Hibernate |
 | `PORT` | `8080` | Puerto HTTP (Render lo inyecta automáticamente) |
 
@@ -163,7 +166,7 @@ renombrar o borrar como cualquier otra, no están protegidas.
 | Método | Ruta | Cuerpo | Respuesta |
 |---|---|---|---|
 | `GET` | `/api/users/me` | — | `{ id, email, name, alias, themePreference, languagePreference, avatarUpdatedAt }` |
-| `PATCH` | `/api/users/me/preferences` | `{ themePreference?, languagePreference? }` | Usuario actualizado |
+| `PATCH` | `/api/users/me/preferences` | `{ themePreference?, languagePreference?, remindersEnabled?, reminderHour? }` | Usuario actualizado |
 | `PATCH` | `/api/users/me/alias` | `{ alias }` | Usuario actualizado, o `409` si el alias ya lo tiene otra cuenta |
 | `POST` | `/api/users/me/avatar` | `multipart/form-data`, campo `file` | Usuario actualizado, o `400` si no es una imagen válida (PNG/JPEG/WEBP, máx. 5 MB) |
 | `DELETE` | `/api/users/me/avatar` | — | Usuario actualizado (idempotente: no falla si no tenías avatar) |
@@ -174,6 +177,8 @@ renombrar o borrar como cualquier otra, no están protegidas.
 - `alias`: 3-24 caracteres, solo letras/números/`_`, único entre cuentas (sin distinguir
   mayúsculas) y sin palabras malsonantes (ES/CA/EN). Opcional — `null` hasta que el usuario elige
   uno.
+- `reminderHour`: 0-23 (por defecto 9). El aviso de lectura estancada se envía cada hora en
+  punto solo a quien tenga esa hora configurada, por email y por push si lo tiene activado.
 - `avatarUpdatedAt`: `null` si no tiene avatar; si no, la fecha en que se subió/cambió — pensada
   para que el frontend la use como parámetro de caché (`?v=...`) en la URL de la imagen, no para
   mostrarla. Cualquier imagen subida se recorta a cuadrado (centrado) y se redimensiona a
@@ -197,11 +202,25 @@ renombrar o borrar como cualquier otra, no están protegidas.
 | `POST` | `/api/books/{id}/reread` | — | Libro actualizado |
 | `GET` | `/api/books/export` | — | CSV de toda la biblioteca |
 | `POST` | `/api/books/import` | `multipart/form-data`, campo `file` | `BookImportResult` |
+| `GET` | `/api/books/keys` | — | `[{ id, title, author }]` (ligero, para el aviso de duplicados del formulario) |
+| `GET` | `/api/books/trash` | — | Página de libros en la papelera |
+| `POST` | `/api/books/{id}/restore` | — | Restaura un libro de la papelera |
+| `DELETE` | `/api/books/{id}/permanent` | — | Elimina definitivamente (solo desde la papelera) |
+| `GET` | `/api/books/recommendations` | — | `{ basedOnAuthor, items: [{ title, author, coverUrl, readerCount }] }` |
+
+`DELETE /api/books/{id}` ya no borra de verdad: mueve el libro a la papelera
+(`deletedAt`). La papelera se purga sola cada noche (libros con más de 30 días,
+con sus reseñas, notas e historial). `GET /api/books/recommendations` sugiere
+libros que ha acabado la gente que sigues y que tú aún no tienes, ordenados por
+cuántos los han leído; `basedOnAuthor` es tu autor más leído, por si el frontend
+quiere completar con el catálogo abierto (Open Library) cuando el círculo social
+no da material.
 
 Filtros de `GET /api/books` (opcionales y combinables): `status`, `categoryId`, `q` (texto libre
-en título/autor), `page`/`size` (paginación, 12 por defecto), `sort` (por defecto
-`createdAt,desc`; acepta cualquier campo propio del libro, p. ej. `title,asc` o
-`pageCount,desc`).
+en título/autor, máx. 100 caracteres), `page`/`size` (paginación, 12 por defecto), `sort`
+(por defecto `createdAt,desc`; acepta `title`, `author`, `createdAt`, `updatedAt`,
+`pageCount`, `startedAt`, `finishedAt`, `status`, `series`, `seriesPosition`,
+`statusChangedAt` y `deletedAt`, p. ej. `title,asc`).
 
 ```json
 // BookRequest — solo title y status son obligatorios
@@ -312,6 +331,7 @@ marcar nada la rompe.
 | `GET` | `/api/users/{id}/profile` | — | Perfil público de ese usuario |
 | `POST` | `/api/users/{id}/follow` | — | `204`. `409` si ya le sigues, `400` si es tu propio id |
 | `DELETE` | `/api/users/{id}/follow` | — | `204` (idempotente: no falla si no le seguías) |
+| `GET` | `/api/users/{id}/profile/books?page=&size=` | — | Página de libros del perfil (20 por defecto), vacía si no es visible |
 
 `GET /api/users/search` solo encuentra usuarios que tienen alias puesto — sin alias, no eres
 localizable. La respuesta de cada resultado: `{ id, alias, name, followersCount, followedByMe }`.
@@ -330,16 +350,30 @@ verdad — la estantería y las reseñas de alguien son privadas hasta que le si
 | `GET` | `/api/notifications/unread-count` | — | `{ count }` |
 | `POST` | `/api/notifications/read-all` | — | `204` |
 
-Cada notificación: `{ id, type, actorId, actorAlias, actorName, read, createdAt }`. Por ahora el
-único `type` es `NEW_FOLLOWER`, creada automáticamente al seguir a alguien
-(`FollowService.follow()`). `POST .../read-all` marca como leídas todas las que tuvieras
+Cada notificación: `{ id, type, actorId, actorAlias, actorName, read, createdAt }`. Tipos:
+`NEW_FOLLOWER` (al seguir a alguien) y `NEW_REVIEW_LIKE` (al dar like a una reseña
+ajena). `POST .../read-all` marca como leídas todas las que tuvieras
 pendientes de este usuario.
+
+**Push (PWA)**
+
+| Método | Ruta | Cuerpo | Respuesta |
+|---|---|---|---|
+| `POST` | `/api/push/subscriptions` | `{ endpoint, p256dh, auth }` | `204` (idempotente por endpoint) |
+| `DELETE` | `/api/push/subscriptions?endpoint=` | — | `204` |
+
+Al seguir a alguien con push activado se le envía una notificación Web Push
+(`{"title","body","url":"/people/{id}"}`) además de la notificación interna. Las
+subscripcions caducades (404/410 del push service) se eliminan solas. Sin claves
+VAPID (`VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`, generadas con
+`npx web-push generate-vapid-keys`) no se envía nada, solo se registra en el log.
 
 **Feed de actividad**
 
 | Método | Ruta | Cuerpo | Respuesta |
 |---|---|---|---|
 | `GET` | `/api/feed?limit=` | — | Lista de `FeedItemResponse`, más reciente primero |
+| `GET` | `/api/feed?limit=&before=` | — | Scroll infinito: solo items con `occurredAt` anterior a `before` (ISO-8601) |
 
 `limit` (opcional, por defecto 20, máximo 50). Cada elemento:
 `{ type, actorId, actorAlias, actorName, bookId, bookTitle, bookCoverUrl, rating, occurredAt }`,
@@ -386,6 +420,16 @@ de los libros `READ` con `finishedAt` en ese año (no hace falta guardarlo apart
 | `POST` | `/api/books/{bookId}/reviews` | `{ rating, text }` | `201` + reseña |
 | `PUT` | `/api/books/{bookId}/reviews/{id}` | `{ rating, text }` | Reseña actualizada |
 | `DELETE` | `/api/books/{bookId}/reviews/{id}` | — | `204` |
+| `POST` | `/api/reviews/{id}/like` | — | Reseña con `likesCount` y `likedByMe` |
+| `DELETE` | `/api/reviews/{id}/like` | — | Reseña sin tu like |
+| `GET` | `/api/reviews/{id}/comments` | — | Lista de comentarios |
+| `POST` | `/api/reviews/{id}/comments` | `{ text }` (máx. 500) | `201` + comentario |
+| `DELETE` | `/api/reviews/{id}/comments/{commentId}` | — | `204` (solo tus comentarios) |
+
+El like funciona sobre cualquier reseña visible (propia o de alguien a quien sigues;
+si no, `404`). El primer like avisa al autor con una notificación `NEW_REVIEW_LIKE`
+(+ push si lo tiene activado). Los comentarios siguen la misma visibilidad y avisan
+con `NEW_REVIEW_COMMENT`.
 
 `rating`: número de 0.5 a 5, en pasos de 0.5 (p. ej. `3.5`).
 
@@ -598,6 +642,9 @@ mvn spring-boot:run
 | `RESEND_API_KEY` | — | API key for [Resend](https://resend.com) (sent over HTTPS, not SMTP — Render blocks outbound SMTP ports on the Free plan) |
 | `MAIL_FROM` | `onboarding@resend.dev` | Sender of the emails. The default is Resend's test sender, which only delivers to the email you signed up to Resend with; to send to any recipient you need to verify your own domain in Resend and use an address on that domain |
 | `REQUIRE_EMAIL_VERIFICATION` | `false` | Emergency switch: when `false`, accounts are born already verified and login doesn't depend on email (`forgot-password` still works the same, unaffected by this variable) |
+| `VAPID_PUBLIC_KEY` | — | VAPID public key for Web Push (`npx web-push generate-vapid-keys`). Without it no pushes are sent |
+| `VAPID_PRIVATE_KEY` | — | VAPID private key (server-side only, never in the frontend) |
+| `VAPID_SUBJECT` | `mailto:shelfy@example.com` | VAPID contact (`mailto:` or URL) |
 | `DDL_AUTO` | `update` | Hibernate schema strategy |
 | `PORT` | `8080` | HTTP port (Render injects this automatically) |
 
@@ -638,7 +685,7 @@ renamed or deleted like any other, they aren't protected.
 | Method | Route | Body | Response |
 |---|---|---|---|
 | `GET` | `/api/users/me` | — | `{ id, email, name, alias, themePreference, languagePreference, avatarUpdatedAt }` |
-| `PATCH` | `/api/users/me/preferences` | `{ themePreference?, languagePreference? }` | Updated user |
+| `PATCH` | `/api/users/me/preferences` | `{ themePreference?, languagePreference?, remindersEnabled?, reminderHour? }` | Updated user |
 | `PATCH` | `/api/users/me/alias` | `{ alias }` | Updated user, or `409` if the alias is already taken by another account |
 | `POST` | `/api/users/me/avatar` | `multipart/form-data`, field `file` | Updated user, or `400` if it's not a valid image (PNG/JPEG/WEBP, max. 5 MB) |
 | `DELETE` | `/api/users/me/avatar` | — | Updated user (idempotent: doesn't fail if you had no avatar) |
@@ -671,10 +718,24 @@ renamed or deleted like any other, they aren't protected.
 | `POST` | `/api/books/{id}/reread` | — | Updated book |
 | `GET` | `/api/books/export` | — | CSV of the whole library |
 | `POST` | `/api/books/import` | `multipart/form-data`, field `file` | `BookImportResult` |
+| `GET` | `/api/books/keys` | — | `[{ id, title, author }]` (lightweight, for the form's duplicate warning) |
+| `GET` | `/api/books/trash` | — | Page of trashed books |
+| `POST` | `/api/books/{id}/restore` | — | Restores a trashed book |
+| `DELETE` | `/api/books/{id}/permanent` | — | Deletes permanently (trash only) |
+| `GET` | `/api/books/recommendations` | — | `{ basedOnAuthor, items: [{ title, author, coverUrl, readerCount }] }` |
+
+`DELETE /api/books/{id}` no longer deletes for real: it moves the book to the
+trash (`deletedAt`). The trash purges itself every night (books older than 30 days,
+with their reviews, notes and history). `GET /api/books/recommendations` suggests
+books finished by people you follow that you don't own yet, ranked by reader count;
+`basedOnAuthor` is your most-read author, in case the frontend wants to top up from
+the open catalog (Open Library) when your circle is quiet.
 
 `GET /api/books` filters (optional and combinable): `status`, `categoryId`, `q` (free text on
-title/author), `page`/`size` (pagination, 12 by default), `sort` (defaults to `createdAt,desc`;
-accepts any of the book's own fields, e.g. `title,asc` or `pageCount,desc`).
+title/author, max 100 chars), `page`/`size` (pagination, 12 by default), `sort` (defaults to
+`createdAt,desc`; accepts `title`, `author`, `createdAt`, `updatedAt`, `pageCount`,
+`startedAt`, `finishedAt`, `status`, `series`, `seriesPosition`, `statusChangedAt` and
+`deletedAt`, e.g. `title,asc`).
 
 ```json
 // BookRequest — only title and status are required
@@ -782,6 +843,7 @@ with nothing marked breaks it.
 | `GET` | `/api/users/{id}/profile` | — | That user's public profile |
 | `POST` | `/api/users/{id}/follow` | — | `204`. `409` if you already follow them, `400` if it's your own id |
 | `DELETE` | `/api/users/{id}/follow` | — | `204` (idempotent: doesn't fail if you weren't following them) |
+| `GET` | `/api/users/{id}/profile/books?page=&size=` | — | Page of the profile's books (20 by default), empty when not visible |
 
 `GET /api/users/search` only finds users who have an alias set — without one, you're not
 findable. Each result: `{ id, alias, name, followersCount, followedByMe }`.
@@ -800,16 +862,30 @@ real books — someone's shelf and reviews are private until you follow them.
 | `GET` | `/api/notifications/unread-count` | — | `{ count }` |
 | `POST` | `/api/notifications/read-all` | — | `204` |
 
-Each notification: `{ id, type, actorId, actorAlias, actorName, read, createdAt }`. For now the
-only `type` is `NEW_FOLLOWER`, created automatically when someone follows you
-(`FollowService.follow()`). `POST .../read-all` marks all of this user's pending notifications as
+Each notification: `{ id, type, actorId, actorAlias, actorName, read, createdAt }`. Types:
+`NEW_FOLLOWER` (when following someone) and `NEW_REVIEW_LIKE` (when liking someone
+else's review). `POST .../read-all` marks all of this user's pending notifications as
 read.
+
+**Push (PWA)**
+
+| Method | Route | Body | Response |
+|---|---|---|---|
+| `POST` | `/api/push/subscriptions` | `{ endpoint, p256dh, auth }` | `204` (idempotent per endpoint) |
+| `DELETE` | `/api/push/subscriptions?endpoint=` | — | `204` |
+
+Following someone with push enabled also sends them a Web Push notification
+(`{"title","body","url":"/people/{id}"}`) on top of the in-app one. Expired
+subscriptions (404/410 from the push service) delete themselves. Without VAPID keys
+(`VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`, generated with
+`npx web-push generate-vapid-keys`) nothing is sent, only logged.
 
 **Activity feed**
 
 | Method | Route | Body | Response |
 |---|---|---|---|
 | `GET` | `/api/feed?limit=` | — | List of `FeedItemResponse`, most recent first |
+| `GET` | `/api/feed?limit=&before=` | — | Infinite scroll: only items with `occurredAt` before `before` (ISO-8601) |
 
 `limit` (optional, defaults to 20, max 50). Each item:
 `{ type, actorId, actorAlias, actorName, bookId, bookTitle, bookCoverUrl, rating, occurredAt }`,
@@ -856,6 +932,16 @@ the `READ` books with a `finishedAt` in that year (no need to store it separatel
 | `POST` | `/api/books/{bookId}/reviews` | `{ rating, text }` | `201` + review |
 | `PUT` | `/api/books/{bookId}/reviews/{id}` | `{ rating, text }` | Updated review |
 | `DELETE` | `/api/books/{bookId}/reviews/{id}` | — | `204` |
+| `POST` | `/api/reviews/{id}/like` | — | Review with `likesCount` and `likedByMe` |
+| `DELETE` | `/api/reviews/{id}/like` | — | Review without your like |
+| `GET` | `/api/reviews/{id}/comments` | — | List of comments |
+| `POST` | `/api/reviews/{id}/comments` | `{ text }` (max 500) | `201` + comment |
+| `DELETE` | `/api/reviews/{id}/comments/{commentId}` | — | `204` (your comments only) |
+
+Liking works on any visible review (your own or someone you follow's; otherwise
+`404`). The first like notifies the author with a `NEW_REVIEW_LIKE` notification
+(plus push if enabled). Comments follow the same visibility and notify with
+`NEW_REVIEW_COMMENT`.
 
 `rating`: a number from 0.5 to 5, in steps of 0.5 (e.g. `3.5`).
 

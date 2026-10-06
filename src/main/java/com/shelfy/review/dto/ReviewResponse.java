@@ -9,6 +9,8 @@ public record ReviewResponse(
         String text,
         Instant createdAt,
         Long bookId,
-        String authorName
+        String authorName,
+        long likesCount,
+        boolean likedByMe
 ) {
 }

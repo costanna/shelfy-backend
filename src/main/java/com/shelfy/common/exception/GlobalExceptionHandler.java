@@ -1,13 +1,17 @@
 package com.shelfy.common.exception;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import java.util.HashMap;
@@ -70,6 +74,19 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ResponseEntity<ApiError> handleMaxUploadSize(MaxUploadSizeExceededException ex) {
         return build(HttpStatus.BAD_REQUEST, "La imagen no puede superar los 5 MB");
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiError> handleDataIntegrity(DataIntegrityViolationException ex) {
+        log.debug("Violación de integridad: {}", ex.getMessage());
+        return build(HttpStatus.BAD_REQUEST, "Los datos violan una restricción de la base de datos (duplicado o valor demasiado largo)");
+    }
+
+    @ExceptionHandler({HttpMessageNotReadableException.class,
+            MethodArgumentTypeMismatchException.class,
+            MissingServletRequestParameterException.class})
+    public ResponseEntity<ApiError> handleBadRequest(Exception ex) {
+        return build(HttpStatus.BAD_REQUEST, "Petición mal formada");
     }
 
     @ExceptionHandler(Exception.class)

@@ -77,7 +77,7 @@ class AuthServiceTest {
                 authenticationManager, emailService, categoryService);
         lenient().when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
         lenient().when(userMapper.toResponse(any(User.class)))
-                .thenReturn(new UserResponse(USER_ID, EMAIL, "Lectora", null, null, null, null, true));
+                .thenReturn(new UserResponse(USER_ID, EMAIL, "Lectora", null, null, null, null, true, 9));
         lenient().when(jwtService.generateToken(any(), any(), anyInt())).thenReturn("jwt-token");
     }
 

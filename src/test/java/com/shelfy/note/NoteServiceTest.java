@@ -83,12 +83,24 @@ class NoteServiceTest {
     @Test
     void delete_removesTheNoteWhenItBelongsToTheBook() {
         when(bookService.findOwned(USER_ID, BOOK_ID)).thenReturn(book());
-        Note note = Note.builder().id(NOTE_ID).build();
+        Note note = Note.builder().id(NOTE_ID).book(book())
+                .user(User.builder().id(USER_ID).build()).build();
         when(noteRepository.findByIdAndBookId(NOTE_ID, BOOK_ID)).thenReturn(Optional.of(note));
 
         service.delete(USER_ID, BOOK_ID, NOTE_ID);
 
         verify(noteRepository).delete(note);
+    }
+
+    @Test
+    void delete_throwsWhenTheNoteBelongsToAnotherUser() {
+        when(bookService.findOwned(USER_ID, BOOK_ID)).thenReturn(book());
+        Note note = Note.builder().id(NOTE_ID).book(book())
+                .user(User.builder().id(999L).build()).build();
+        when(noteRepository.findByIdAndBookId(NOTE_ID, BOOK_ID)).thenReturn(Optional.of(note));
+
+        assertThatThrownBy(() -> service.delete(USER_ID, BOOK_ID, NOTE_ID))
+                .isInstanceOf(ResourceNotFoundException.class);
     }
 
     @Test

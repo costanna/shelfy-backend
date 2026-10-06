@@ -31,6 +31,7 @@ public class BookController {
 
     private final BookService bookService;
     private final BookCsvService bookCsvService;
+    private final com.shelfy.recommendation.RecommendationService recommendationService;
 
     @GetMapping
     public PageResponse<BookResponse> list(
@@ -46,6 +47,25 @@ public class BookController {
     @GetMapping("/counts")
     public BookStatusCountsResponse counts(@AuthenticationPrincipal UserPrincipal principal) {
         return bookService.getStatusCounts(principal.getId());
+    }
+
+    @GetMapping("/keys")
+    public java.util.List<com.shelfy.book.dto.BookKeyResponse> keys(
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return bookService.keys(principal.getId());
+    }
+
+    @GetMapping("/trash")
+    public PageResponse<BookResponse> trash(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PageableDefault(size = 12, sort = "deletedAt", direction = Sort.Direction.DESC) Pageable pageable) {
+        return bookService.trash(principal.getId(), pageable);
+    }
+
+    @GetMapping("/recommendations")
+    public com.shelfy.recommendation.dto.RecommendationResponse recommendations(
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return recommendationService.getRecommendations(principal.getId());
     }
 
     @GetMapping("/{id}")
@@ -73,6 +93,19 @@ public class BookController {
     public void delete(@AuthenticationPrincipal UserPrincipal principal,
                        @PathVariable Long id) {
         bookService.delete(principal.getId(), id);
+    }
+
+    @PostMapping("/{id}/restore")
+    public BookResponse restore(@AuthenticationPrincipal UserPrincipal principal,
+                                @PathVariable Long id) {
+        return bookService.restore(principal.getId(), id);
+    }
+
+    @DeleteMapping("/{id}/permanent")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void purge(@AuthenticationPrincipal UserPrincipal principal,
+                      @PathVariable Long id) {
+        bookService.purge(principal.getId(), id);
     }
 
     @PatchMapping("/{id}/reading-dates")

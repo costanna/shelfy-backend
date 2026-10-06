@@ -2,6 +2,7 @@ package com.shelfy.goal;
 
 import com.shelfy.book.BookRepository;
 import com.shelfy.book.BookStatus;
+import com.shelfy.book.ReadEventRepository;
 import com.shelfy.goal.dto.ReadingGoalRequest;
 import com.shelfy.goal.dto.ReadingGoalResponse;
 import com.shelfy.user.UserService;
@@ -17,6 +18,7 @@ public class ReadingGoalService {
 
     private final ReadingGoalRepository goalRepository;
     private final BookRepository bookRepository;
+    private final ReadEventRepository readEventRepository;
     private final UserService userService;
 
     @Transactional(readOnly = true)
@@ -45,10 +47,15 @@ public class ReadingGoalService {
     }
 
     private long booksReadInYear(Long ownerId, int year) {
-        return bookRepository.findByOwnerId(ownerId).stream()
+        long currentReads = bookRepository.findByOwnerIdAndDeletedAtIsNull(ownerId).stream()
                 .filter(book -> book.getStatus() == BookStatus.READ
                         && book.getFinishedAt() != null
                         && book.getFinishedAt().getYear() == year)
                 .count();
+        long archivedReads = readEventRepository.findByOwnerId(ownerId).stream()
+                .filter(event -> event.getFinishedAt() != null
+                        && event.getFinishedAt().getYear() == year)
+                .count();
+        return currentReads + archivedReads;
     }
 }

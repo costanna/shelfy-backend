@@ -13,12 +13,16 @@ import java.util.List;
 public class CorsConfig {
 
     @Value("${shelfy.cors.allowed-origins}")
-    private List<String> allowedOrigins;
+    private String allowedOrigins;
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOriginPatterns(allowedOrigins);
+        List<String> origins = List.of(allowedOrigins.split(",")).stream()
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .toList();
+        config.setAllowedOriginPatterns(origins);
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);

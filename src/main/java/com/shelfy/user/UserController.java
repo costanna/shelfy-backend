@@ -64,6 +64,15 @@ public class UserController {
         return userProfileService.getProfile(principal.getId(), id);
     }
 
+    @GetMapping("/{id}/profile/books")
+    public PageResponse<com.shelfy.user.dto.PublicBookResponse> profileBooks(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long id,
+            @PageableDefault(size = 20, sort = "createdAt",
+                    direction = org.springframework.data.domain.Sort.Direction.DESC) Pageable pageable) {
+        return userProfileService.getProfileBooks(principal.getId(), id, pageable);
+    }
+
     @PostMapping(value = "/me/avatar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public UserResponse uploadAvatar(@AuthenticationPrincipal UserPrincipal principal,
                                      @RequestParam("file") MultipartFile file) {
@@ -80,7 +89,7 @@ public class UserController {
         Avatar avatar = avatarService.get(id);
         return ResponseEntity.ok()
                 .contentType(MediaType.IMAGE_JPEG)
-                .cacheControl(CacheControl.maxAge(Duration.ofDays(365)).cachePublic())
+                .cacheControl(CacheControl.maxAge(Duration.ofDays(365)).cachePublic().immutable())
                 .body(avatar.getImageData());
     }
 

@@ -30,7 +30,7 @@ public class StatsService {
 
     @Transactional(readOnly = true)
     public ReadingStatsResponse getStats(Long ownerId) {
-        List<Book> books = bookRepository.findByOwnerId(ownerId);
+        List<Book> books = bookRepository.findByOwnerIdAndDeletedAtIsNull(ownerId);
         List<ReadEvent> pastReads = readEventRepository.findByOwnerId(ownerId);
 
         long totalBooksRead = books.stream()
@@ -66,6 +66,7 @@ public class StatsService {
 
     private List<MonthlyReadCount> booksByMonth(List<BookReadingDuration> completions) {
         Map<YearMonth, Long> counts = completions.stream()
+                .filter(completion -> completion.finishedAt() != null)
                 .collect(Collectors.groupingBy(
                         completion -> YearMonth.from(completion.finishedAt()),
                         Collectors.counting()

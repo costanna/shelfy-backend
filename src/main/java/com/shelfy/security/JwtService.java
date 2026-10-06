@@ -22,6 +22,10 @@ public class JwtService {
             @Value("${shelfy.jwt.secret}") String secret,
             @Value("${shelfy.jwt.expiration-ms}") long expirationMillis
     ) {
+        if (secret == null || secret.length() < 32) {
+            throw new IllegalStateException(
+                    "JWT_SECRET debe tener al menos 32 caracteres (256 bits). Define la variable de entorno JWT_SECRET en producción.");
+        }
         this.key = buildKey(secret);
         this.expirationMillis = expirationMillis;
     }

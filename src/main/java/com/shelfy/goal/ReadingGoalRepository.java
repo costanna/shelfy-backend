@@ -10,4 +10,6 @@ public interface ReadingGoalRepository extends JpaRepository<ReadingGoal, Long> 
     Optional<ReadingGoal> findByOwnerIdAndYear(Long ownerId, int year);
 
     List<ReadingGoal> findByOwnerId(Long ownerId);
+
+    void deleteByOwnerId(Long ownerId);
 }

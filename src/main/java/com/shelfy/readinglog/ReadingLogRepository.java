@@ -14,6 +14,8 @@ public interface ReadingLogRepository extends JpaRepository<ReadingLog, Long> {
 
     List<ReadingLog> findByOwnerId(Long ownerId);
 
+    void deleteByOwnerId(Long ownerId);
+
     List<ReadingLog> findByOwnerIdAndDateBetweenOrderByDateAsc(Long ownerId, LocalDate from, LocalDate to);
 
     @Query("select distinct r.date from ReadingLog r where r.owner.id = :ownerId order by r.date desc")

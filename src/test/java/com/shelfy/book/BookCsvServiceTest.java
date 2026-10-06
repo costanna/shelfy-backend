@@ -63,7 +63,7 @@ class BookCsvServiceTest {
 
     @Test
     void export_ofAnEmptyLibraryReturnsOnlyTheHeader() {
-        when(bookRepository.findByOwnerId(OWNER_ID)).thenReturn(List.of());
+        when(bookRepository.findByOwnerIdAndDeletedAtIsNull(OWNER_ID)).thenReturn(List.of());
 
         String csv = service.export(OWNER_ID);
 
@@ -74,7 +74,7 @@ class BookCsvServiceTest {
     @Test
     void export_escapesValuesThatContainCommas() {
         Book b = book("Mi libro, el bueno", "García, Gabriel", BookStatus.READ);
-        when(bookRepository.findByOwnerId(OWNER_ID)).thenReturn(List.of(b));
+        when(bookRepository.findByOwnerIdAndDeletedAtIsNull(OWNER_ID)).thenReturn(List.of(b));
 
         String csv = service.export(OWNER_ID);
 
@@ -87,7 +87,7 @@ class BookCsvServiceTest {
         b.setCategories(new java.util.LinkedHashSet<>(List.of(
                 Category.builder().name("Ciencia ficción").build(),
                 Category.builder().name("Favoritos").build())));
-        when(bookRepository.findByOwnerId(OWNER_ID)).thenReturn(List.of(b));
+        when(bookRepository.findByOwnerIdAndDeletedAtIsNull(OWNER_ID)).thenReturn(List.of(b));
 
         String csv = service.export(OWNER_ID);
 

@@ -36,8 +36,13 @@ public class EmailService {
     private String frontendUrl;
 
     public EmailService(@Value("${shelfy.mail.resend-api-key:}") String resendApiKey) {
+        org.springframework.http.client.SimpleClientHttpRequestFactory requestFactory =
+                new org.springframework.http.client.SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout(java.time.Duration.ofSeconds(3));
+        requestFactory.setReadTimeout(java.time.Duration.ofSeconds(5));
         this.restClient = RestClient.builder()
                 .baseUrl(RESEND_API_URL)
+                .requestFactory(requestFactory)
                 .defaultHeader("Authorization", "Bearer " + resendApiKey)
                 .build();
     }

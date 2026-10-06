@@ -3,6 +3,7 @@ package com.shelfy.goal;
 import com.shelfy.book.Book;
 import com.shelfy.book.BookRepository;
 import com.shelfy.book.BookStatus;
+import com.shelfy.book.ReadEventRepository;
 import com.shelfy.goal.dto.ReadingGoalRequest;
 import com.shelfy.goal.dto.ReadingGoalResponse;
 import com.shelfy.user.User;
@@ -21,6 +22,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -35,6 +37,8 @@ class ReadingGoalServiceTest {
     @Mock
     private BookRepository bookRepository;
     @Mock
+    private ReadEventRepository readEventRepository;
+    @Mock
     private UserService userService;
 
     @Captor
@@ -44,7 +48,8 @@ class ReadingGoalServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new ReadingGoalService(goalRepository, bookRepository, userService);
+        service = new ReadingGoalService(goalRepository, bookRepository, readEventRepository, userService);
+        lenient().when(readEventRepository.findByOwnerId(OWNER_ID)).thenReturn(List.of());
     }
 
     private Book readBookIn(int year) {
@@ -54,7 +59,7 @@ class ReadingGoalServiceTest {
     @Test
     void getCurrent_returnsNullTargetWhenNoGoalHasBeenSetYet() {
         when(goalRepository.findByOwnerIdAndYear(OWNER_ID, THIS_YEAR)).thenReturn(Optional.empty());
-        when(bookRepository.findByOwnerId(OWNER_ID)).thenReturn(List.of());
+        when(bookRepository.findByOwnerIdAndDeletedAtIsNull(OWNER_ID)).thenReturn(List.of());
 
         ReadingGoalResponse response = service.getCurrent(OWNER_ID);
 
@@ -67,7 +72,7 @@ class ReadingGoalServiceTest {
     void getCurrent_onlyCountsBooksFinishedInTheCurrentYear() {
         when(goalRepository.findByOwnerIdAndYear(OWNER_ID, THIS_YEAR))
                 .thenReturn(Optional.of(ReadingGoal.builder().year(THIS_YEAR).targetBooks(20).build()));
-        when(bookRepository.findByOwnerId(OWNER_ID)).thenReturn(List.of(
+        when(bookRepository.findByOwnerIdAndDeletedAtIsNull(OWNER_ID)).thenReturn(List.of(
                 readBookIn(THIS_YEAR),
                 readBookIn(THIS_YEAR),
                 readBookIn(THIS_YEAR - 1),
@@ -80,10 +85,24 @@ class ReadingGoalServiceTest {
     }
 
     @Test
+    void getCurrent_countsArchivedRereadsInTheSameYear() {
+        when(goalRepository.findByOwnerIdAndYear(OWNER_ID, THIS_YEAR)).thenReturn(Optional.empty());
+        when(bookRepository.findByOwnerIdAndDeletedAtIsNull(OWNER_ID)).thenReturn(List.of(readBookIn(THIS_YEAR)));
+        com.shelfy.book.ReadEvent archived = com.shelfy.book.ReadEvent.builder()
+                .finishedAt(java.time.LocalDate.of(THIS_YEAR, 3, 10))
+                .build();
+        when(readEventRepository.findByOwnerId(OWNER_ID)).thenReturn(List.of(archived));
+
+        ReadingGoalResponse response = service.getCurrent(OWNER_ID);
+
+        assertThat(response.booksRead()).isEqualTo(2);
+    }
+
+    @Test
     void setCurrent_createsANewGoalWhenNoneExistsYet() {
         when(goalRepository.findByOwnerIdAndYear(OWNER_ID, THIS_YEAR)).thenReturn(Optional.empty());
         when(userService.getEntity(OWNER_ID)).thenReturn(User.builder().id(OWNER_ID).build());
-        when(bookRepository.findByOwnerId(OWNER_ID)).thenReturn(List.of());
+        when(bookRepository.findByOwnerIdAndDeletedAtIsNull(OWNER_ID)).thenReturn(List.of());
 
         ReadingGoalResponse response = service.setCurrent(OWNER_ID, new ReadingGoalRequest(30));
 
@@ -97,7 +116,7 @@ class ReadingGoalServiceTest {
     void setCurrent_updatesTheExistingGoalInsteadOfCreatingAnother() {
         ReadingGoal existing = ReadingGoal.builder().id(5L).year(THIS_YEAR).targetBooks(10).build();
         when(goalRepository.findByOwnerIdAndYear(OWNER_ID, THIS_YEAR)).thenReturn(Optional.of(existing));
-        when(bookRepository.findByOwnerId(OWNER_ID)).thenReturn(List.of());
+        when(bookRepository.findByOwnerIdAndDeletedAtIsNull(OWNER_ID)).thenReturn(List.of());
 
         service.setCurrent(OWNER_ID, new ReadingGoalRequest(50));
 

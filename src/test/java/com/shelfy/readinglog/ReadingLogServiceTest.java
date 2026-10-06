@@ -62,6 +62,7 @@ class ReadingLogServiceTest {
         service.mark(OWNER_ID, new MarkReadingDayRequest(BOOK_ID, date));
 
         verify(readingLogRepository, never()).save(any());
+        verify(readingLogRepository, never()).saveAndFlush(any());
     }
 
     @Test
@@ -69,7 +70,7 @@ class ReadingLogServiceTest {
         LocalDate date = LocalDate.now();
         when(readingLogRepository.findByOwnerIdAndBookIdAndDate(OWNER_ID, BOOK_ID, date))
                 .thenReturn(Optional.empty());
-        when(bookRepository.findByIdAndOwnerId(BOOK_ID, OWNER_ID)).thenReturn(Optional.empty());
+        when(bookRepository.findByIdAndOwnerIdAndDeletedAtIsNull(BOOK_ID, OWNER_ID)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.mark(OWNER_ID, new MarkReadingDayRequest(BOOK_ID, date)))
                 .isInstanceOf(ResourceNotFoundException.class);
@@ -80,12 +81,12 @@ class ReadingLogServiceTest {
         LocalDate date = LocalDate.now();
         when(readingLogRepository.findByOwnerIdAndBookIdAndDate(OWNER_ID, BOOK_ID, date))
                 .thenReturn(Optional.empty());
-        when(bookRepository.findByIdAndOwnerId(BOOK_ID, OWNER_ID)).thenReturn(Optional.of(book(BOOK_ID, "Dune")));
+        when(bookRepository.findByIdAndOwnerIdAndDeletedAtIsNull(BOOK_ID, OWNER_ID)).thenReturn(Optional.of(book(BOOK_ID, "Dune")));
         when(userRepository.getReferenceById(OWNER_ID)).thenReturn(User.builder().id(OWNER_ID).build());
 
         service.mark(OWNER_ID, new MarkReadingDayRequest(BOOK_ID, date));
 
-        verify(readingLogRepository).save(any(ReadingLog.class));
+        verify(readingLogRepository).saveAndFlush(any(ReadingLog.class));
     }
 
     @Test

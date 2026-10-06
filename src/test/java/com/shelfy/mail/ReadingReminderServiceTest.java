@@ -3,7 +3,9 @@ package com.shelfy.mail;
 import com.shelfy.book.Book;
 import com.shelfy.book.BookRepository;
 import com.shelfy.book.BookStatus;
+import com.shelfy.push.PushService;
 import com.shelfy.user.User;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -25,16 +27,26 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class ReadingReminderServiceTest {
 
+    private static final int HOUR = 9;
+
     @Mock
     private BookRepository bookRepository;
 
     @Mock
     private EmailService emailService;
 
+    @Mock
+    private PushService pushService;
+
     @Captor
     private ArgumentCaptor<List<String>> titlesCaptor;
 
     private ReadingReminderService service;
+
+    @BeforeEach
+    void setUp() {
+        service = new ReadingReminderService(bookRepository, emailService, pushService);
+    }
 
     private User owner(boolean remindersEnabled) {
         return User.builder()
@@ -43,6 +55,7 @@ class ReadingReminderServiceTest {
                 .password("hash")
                 .name("Lectora")
                 .remindersEnabled(remindersEnabled)
+                .reminderHour(HOUR)
                 .build();
     }
 
@@ -58,13 +71,12 @@ class ReadingReminderServiceTest {
 
     @Test
     void sendsOneReminderAndMarksBookWhenOwnerHasRemindersEnabled() {
-        service = new ReadingReminderService(bookRepository, emailService);
         User owner = owner(true);
         Book book = staleBook(owner, "Libro olvidado");
         when(bookRepository.findByStatusAndStartedAtBeforeAndReminderSentAtIsNull(any(), any()))
                 .thenReturn(List.of(book));
 
-        int emailsSent = service.remindStaleReaders();
+        int emailsSent = service.remindStaleReaders(HOUR);
 
         assertThat(emailsSent).isEqualTo(1);
         verify(emailService).sendStaleReadingReminder(anyString(), anyString(), titlesCaptor.capture());
@@ -74,13 +86,26 @@ class ReadingReminderServiceTest {
 
     @Test
     void doesNotSendWhenOwnerDisabledReminders() {
-        service = new ReadingReminderService(bookRepository, emailService);
         User owner = owner(false);
         Book book = staleBook(owner, "Libro olvidado");
         when(bookRepository.findByStatusAndStartedAtBeforeAndReminderSentAtIsNull(any(), any()))
                 .thenReturn(List.of(book));
 
-        int emailsSent = service.remindStaleReaders();
+        int emailsSent = service.remindStaleReaders(HOUR);
+
+        assertThat(emailsSent).isZero();
+        verify(emailService, never()).sendStaleReadingReminder(anyString(), anyString(), any());
+        assertThat(book.getReminderSentAt()).isNull();
+    }
+
+    @Test
+    void doesNotSendWhenCurrentHourDoesNotMatchOwnerPreference() {
+        User owner = owner(true);
+        Book book = staleBook(owner, "Libro olvidado");
+        when(bookRepository.findByStatusAndStartedAtBeforeAndReminderSentAtIsNull(any(), any()))
+                .thenReturn(List.of(book));
+
+        int emailsSent = service.remindStaleReaders((HOUR + 3) % 24);
 
         assertThat(emailsSent).isZero();
         verify(emailService, never()).sendStaleReadingReminder(anyString(), anyString(), any());
@@ -89,14 +114,13 @@ class ReadingReminderServiceTest {
 
     @Test
     void consolidatesMultipleStaleBooksForTheSameOwnerIntoOneEmail() {
-        service = new ReadingReminderService(bookRepository, emailService);
         User owner = owner(true);
         Book bookA = staleBook(owner, "Primer libro");
         Book bookB = staleBook(owner, "Segundo libro");
         when(bookRepository.findByStatusAndStartedAtBeforeAndReminderSentAtIsNull(any(), any()))
                 .thenReturn(List.of(bookA, bookB));
 
-        int emailsSent = service.remindStaleReaders();
+        int emailsSent = service.remindStaleReaders(HOUR);
 
         assertThat(emailsSent).isEqualTo(1);
         verify(emailService, times(1)).sendStaleReadingReminder(anyString(), anyString(), titlesCaptor.capture());
@@ -107,11 +131,10 @@ class ReadingReminderServiceTest {
 
     @Test
     void doesNothingWhenNoStaleBooksExist() {
-        service = new ReadingReminderService(bookRepository, emailService);
         when(bookRepository.findByStatusAndStartedAtBeforeAndReminderSentAtIsNull(any(), any()))
                 .thenReturn(List.of());
 
-        int emailsSent = service.remindStaleReaders();
+        int emailsSent = service.remindStaleReaders(HOUR);
 
         assertThat(emailsSent).isZero();
         verify(emailService, never()).sendStaleReadingReminder(anyString(), anyString(), any());

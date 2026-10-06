@@ -8,15 +8,15 @@ import com.shelfy.follow.FollowRepository;
 import com.shelfy.goal.ReadingGoalRepository;
 import com.shelfy.note.NoteRepository;
 import com.shelfy.notification.NotificationRepository;
+import com.shelfy.push.PushSubscriptionRepository;
 import com.shelfy.readinglog.ReadingLogRepository;
+import com.shelfy.review.ReviewCommentRepository;
 import com.shelfy.review.ReviewRepository;
 import com.shelfy.user.dto.DeleteAccountRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.LinkedHashSet;
 
 @Service
 @RequiredArgsConstructor
@@ -30,9 +30,11 @@ public class AccountService {
     private final ReadingLogRepository readingLogRepository;
     private final ReadingGoalRepository readingGoalRepository;
     private final FollowRepository followRepository;
+    private final ReviewCommentRepository reviewCommentRepository;
     private final ReadEventRepository readEventRepository;
     private final NotificationRepository notificationRepository;
     private final AvatarRepository avatarRepository;
+    private final PushSubscriptionRepository pushSubscriptionRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Transactional
@@ -44,21 +46,24 @@ public class AccountService {
             throw new IllegalArgumentException("Contraseña incorrecta");
         }
 
-        readingLogRepository.deleteAll(readingLogRepository.findByOwnerId(userId));
-        reviewRepository.deleteAll(reviewRepository.findByUserId(userId));
-        noteRepository.deleteAll(noteRepository.findByUserId(userId));
-        readingGoalRepository.deleteAll(readingGoalRepository.findByOwnerId(userId));
-        readEventRepository.deleteAll(readEventRepository.findByOwnerId(userId));
+        // Esborrats massius: sense carregar col·leccions senceres en memòria.
+        readingLogRepository.deleteByOwnerId(userId);
+        reviewCommentRepository.deleteByUserId(userId);
+        reviewRepository.deleteByUserId(userId);
+        noteRepository.deleteByUserId(userId);
+        readingGoalRepository.deleteByOwnerId(userId);
+        readEventRepository.deleteByOwnerId(userId);
 
-        bookRepository.deleteAll(bookRepository.findByOwnerId(userId));
+        bookRepository.deleteJoinRowsByOwnerId(userId);
+        bookRepository.deleteByOwnerId(userId);
 
-        categoryRepository.deleteAll(categoryRepository.findByOwnerIdOrderByNameAsc(userId));
+        categoryRepository.deleteByOwnerId(userId);
 
-        var followingAndFollowers = new LinkedHashSet<>(followRepository.findByFollowerIdOrderByCreatedAtDesc(userId));
-        followingAndFollowers.addAll(followRepository.findByFollowedIdOrderByCreatedAtDesc(userId));
-        followRepository.deleteAll(followingAndFollowers);
+        followRepository.deleteByFollowerIdOrFollowedId(userId, userId);
 
         notificationRepository.deleteByRecipientIdOrActorId(userId);
+
+        pushSubscriptionRepository.deleteByOwnerId(userId);
 
         avatarRepository.findById(userId).ifPresent(avatarRepository::delete);
 

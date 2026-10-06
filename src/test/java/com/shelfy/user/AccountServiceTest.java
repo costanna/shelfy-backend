@@ -67,6 +67,10 @@ class AccountServiceTest {
     @Mock
     private AvatarRepository avatarRepository;
     @Mock
+    private com.shelfy.push.PushSubscriptionRepository pushSubscriptionRepository;
+    @Mock
+    private com.shelfy.review.ReviewCommentRepository reviewCommentRepository;
+    @Mock
     private PasswordEncoder passwordEncoder;
 
     @Captor
@@ -77,8 +81,9 @@ class AccountServiceTest {
     @BeforeEach
     void setUp() {
         service = new AccountService(userRepository, bookRepository, categoryRepository, reviewRepository,
-                noteRepository, readingLogRepository, readingGoalRepository, followRepository, readEventRepository,
-                notificationRepository, avatarRepository, passwordEncoder);
+                noteRepository, readingLogRepository, readingGoalRepository, followRepository, reviewCommentRepository,
+                readEventRepository, notificationRepository, avatarRepository, pushSubscriptionRepository,
+                passwordEncoder);
     }
 
     private User user() {
@@ -102,7 +107,7 @@ class AccountServiceTest {
         assertThatThrownBy(() -> service.deleteAccount(USER_ID, new DeleteAccountRequest("wrong")))
                 .isInstanceOf(IllegalArgumentException.class);
 
-        verify(bookRepository, never()).deleteAll(org.mockito.ArgumentMatchers.<List<Book>>any());
+        verify(bookRepository, never()).deleteByOwnerId(USER_ID);
         verify(userRepository, never()).delete(org.mockito.ArgumentMatchers.any());
     }
 
@@ -111,39 +116,20 @@ class AccountServiceTest {
         User user = user();
         when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
         when(passwordEncoder.matches("correct", "hashed")).thenReturn(true);
-
-        ReadingLog readingLog = new ReadingLog();
-        Review review = Review.builder().id(1L).build();
-        Note note = Note.builder().id(1L).build();
-        ReadingGoal goal = ReadingGoal.builder().id(1L).build();
-        ReadEvent readEvent = ReadEvent.builder().id(1L).build();
-        Book book = Book.builder().id(1L).build();
-        Category category = Category.builder().id(1L).build();
-        Follow following = Follow.builder().id(1L).build();
-        Follow follower = Follow.builder().id(2L).build();
-
-        when(readingLogRepository.findByOwnerId(USER_ID)).thenReturn(List.of(readingLog));
-        when(reviewRepository.findByUserId(USER_ID)).thenReturn(List.of(review));
-        when(noteRepository.findByUserId(USER_ID)).thenReturn(List.of(note));
-        when(readingGoalRepository.findByOwnerId(USER_ID)).thenReturn(List.of(goal));
-        when(readEventRepository.findByOwnerId(USER_ID)).thenReturn(List.of(readEvent));
-        when(bookRepository.findByOwnerId(USER_ID)).thenReturn(List.of(book));
-        when(categoryRepository.findByOwnerIdOrderByNameAsc(USER_ID)).thenReturn(List.of(category));
-        when(followRepository.findByFollowerIdOrderByCreatedAtDesc(USER_ID)).thenReturn(List.of(following));
-        when(followRepository.findByFollowedIdOrderByCreatedAtDesc(USER_ID)).thenReturn(List.of(follower));
         lenient().when(avatarRepository.findById(USER_ID)).thenReturn(Optional.empty());
 
         service.deleteAccount(USER_ID, new DeleteAccountRequest("correct"));
 
-        verify(readingLogRepository).deleteAll(List.of(readingLog));
-        verify(reviewRepository).deleteAll(List.of(review));
-        verify(noteRepository).deleteAll(List.of(note));
-        verify(readingGoalRepository).deleteAll(List.of(goal));
-        verify(readEventRepository).deleteAll(List.of(readEvent));
-        verify(bookRepository).deleteAll(List.of(book));
-        verify(categoryRepository).deleteAll(List.of(category));
-        verify(followRepository).deleteAll(followsCaptor.capture());
-        assertThat(followsCaptor.getValue()).containsExactlyInAnyOrder(following, follower);
+        verify(readingLogRepository).deleteByOwnerId(USER_ID);
+        verify(reviewCommentRepository).deleteByUserId(USER_ID);
+        verify(reviewRepository).deleteByUserId(USER_ID);
+        verify(noteRepository).deleteByUserId(USER_ID);
+        verify(readingGoalRepository).deleteByOwnerId(USER_ID);
+        verify(readEventRepository).deleteByOwnerId(USER_ID);
+        verify(bookRepository).deleteJoinRowsByOwnerId(USER_ID);
+        verify(bookRepository).deleteByOwnerId(USER_ID);
+        verify(categoryRepository).deleteByOwnerId(USER_ID);
+        verify(followRepository).deleteByFollowerIdOrFollowedId(USER_ID, USER_ID);
         verify(notificationRepository).deleteByRecipientIdOrActorId(USER_ID);
         verify(userRepository).delete(user);
     }
@@ -174,14 +160,5 @@ class AccountServiceTest {
     }
 
     private void stubEmptyCollections() {
-        lenient().when(readingLogRepository.findByOwnerId(USER_ID)).thenReturn(List.of());
-        lenient().when(reviewRepository.findByUserId(USER_ID)).thenReturn(List.of());
-        lenient().when(noteRepository.findByUserId(USER_ID)).thenReturn(List.of());
-        lenient().when(readingGoalRepository.findByOwnerId(USER_ID)).thenReturn(List.of());
-        lenient().when(readEventRepository.findByOwnerId(USER_ID)).thenReturn(List.of());
-        lenient().when(bookRepository.findByOwnerId(USER_ID)).thenReturn(List.of());
-        lenient().when(categoryRepository.findByOwnerIdOrderByNameAsc(USER_ID)).thenReturn(List.of());
-        lenient().when(followRepository.findByFollowerIdOrderByCreatedAtDesc(USER_ID)).thenReturn(List.of());
-        lenient().when(followRepository.findByFollowedIdOrderByCreatedAtDesc(USER_ID)).thenReturn(List.of());
     }
 }

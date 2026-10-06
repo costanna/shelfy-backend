@@ -70,7 +70,7 @@ class FeedServiceTest {
         List<FeedItemResponse> feed = service.getFeed(VIEWER_ID, 20);
 
         assertThat(feed).isEmpty();
-        verify(bookRepository, never()).findByOwnerIdInAndStatusOrderByUpdatedAtDesc(any(), any(), any());
+        verify(bookRepository, never()).findFeedBooksByStatus(any(), any(), any());
         verify(reviewRepository, never()).findByUserIdInOrderByCreatedAtDesc(any(), any());
     }
 
@@ -81,12 +81,12 @@ class FeedServiceTest {
         Instant now = Instant.now();
         Book startedBook = book(10L, "Empezado", now.minusSeconds(60));
         Book finishedBook = book(11L, "Terminado", now);
-        Pageable pageable = PageRequest.of(0, 20);
+        Pageable pageable = PageRequest.of(0, 20 * 2 + 10);
 
-        when(bookRepository.findByOwnerIdInAndStatusOrderByUpdatedAtDesc(
+        when(bookRepository.findFeedBooksByStatus(
                 eq(List.of(FOLLOWED_ID)), eq(BookStatus.READING), eq(pageable)))
                 .thenReturn(new PageImpl<>(List.of(startedBook)));
-        when(bookRepository.findByOwnerIdInAndStatusOrderByUpdatedAtDesc(
+        when(bookRepository.findFeedBooksByStatus(
                 eq(List.of(FOLLOWED_ID)), eq(BookStatus.READ), eq(pageable)))
                 .thenReturn(new PageImpl<>(List.of(finishedBook)));
 
@@ -105,15 +105,34 @@ class FeedServiceTest {
     }
 
     @Test
+    void getFeed_supportsBeforeCursorForInfiniteScroll() {
+        when(followRepository.findByFollowerIdOrderByCreatedAtDesc(VIEWER_ID)).thenReturn(List.of(follow(FOLLOWED_ID)));
+
+        Instant now = Instant.now();
+        Book older = book(1L, "Vell", now.minusSeconds(120));
+        when(bookRepository.findFeedBooksByStatus(any(), eq(BookStatus.READING), any()))
+                .thenReturn(new PageImpl<>(List.of(older)));
+        when(bookRepository.findFeedBooksByStatus(any(), eq(BookStatus.READ), any()))
+                .thenReturn(new PageImpl<>(List.of()));
+        when(reviewRepository.findByUserIdInOrderByCreatedAtDesc(any(), any()))
+                .thenReturn(new PageImpl<>(List.of()));
+
+        // El cursor és més recent que l'ítem: l'ha de retornar.
+        assertThat(service.getFeed(VIEWER_ID, 20, now)).hasSize(1);
+        // El cursor és més antic que l'ítem: el filtra.
+        assertThat(service.getFeed(VIEWER_ID, 20, now.minusSeconds(180))).isEmpty();
+    }
+
+    @Test
     void getFeed_truncatesToTheRequestedLimitAfterMerging() {
         when(followRepository.findByFollowerIdOrderByCreatedAtDesc(VIEWER_ID)).thenReturn(List.of(follow(FOLLOWED_ID)));
 
         Instant now = Instant.now();
         Page<Book> threeBooks = new PageImpl<>(List.of(
                 book(1L, "A", now), book(2L, "B", now.minusSeconds(1)), book(3L, "C", now.minusSeconds(2))));
-        when(bookRepository.findByOwnerIdInAndStatusOrderByUpdatedAtDesc(any(), eq(BookStatus.READING), any()))
+        when(bookRepository.findFeedBooksByStatus(any(), eq(BookStatus.READING), any()))
                 .thenReturn(threeBooks);
-        when(bookRepository.findByOwnerIdInAndStatusOrderByUpdatedAtDesc(any(), eq(BookStatus.READ), any()))
+        when(bookRepository.findFeedBooksByStatus(any(), eq(BookStatus.READ), any()))
                 .thenReturn(new PageImpl<>(List.of()));
         when(reviewRepository.findByUserIdInOrderByCreatedAtDesc(any(), any())).thenReturn(new PageImpl<>(List.of()));
 

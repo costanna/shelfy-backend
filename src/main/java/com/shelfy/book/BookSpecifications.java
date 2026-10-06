@@ -14,6 +14,10 @@ final class BookSpecifications {
         return (root, query, cb) -> cb.equal(root.get("owner").get("id"), ownerId);
     }
 
+    static Specification<Book> notDeleted() {
+        return (root, query, cb) -> cb.isNull(root.get("deletedAt"));
+    }
+
     static Specification<Book> hasStatus(BookStatus status) {
         if (status == null) {
             return null;

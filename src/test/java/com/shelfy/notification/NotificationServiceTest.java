@@ -32,6 +32,8 @@ class NotificationServiceTest {
     private NotificationRepository notificationRepository;
     @Mock
     private UserRepository userRepository;
+    @Mock
+    private com.shelfy.push.PushService pushService;
 
     @Captor
     private ArgumentCaptor<Notification> notificationCaptor;
@@ -40,7 +42,7 @@ class NotificationServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new NotificationService(notificationRepository, userRepository);
+        service = new NotificationService(notificationRepository, userRepository, pushService);
     }
 
     private User user(Long id, String name, String alias) {

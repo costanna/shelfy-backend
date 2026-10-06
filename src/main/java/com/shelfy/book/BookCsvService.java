@@ -29,13 +29,16 @@ public class BookCsvService {
             "startedAt", "finishedAt", "categories", "synopsis"
     );
 
+    private static final int MAX_IMPORT_ROWS = 2000;
+    private static final long MAX_IMPORT_BYTES = 5L * 1024 * 1024;
+
     private final BookRepository bookRepository;
     private final CategoryService categoryService;
     private final UserService userService;
 
     @Transactional(readOnly = true)
     public String export(Long ownerId) {
-        List<Book> books = bookRepository.findByOwnerId(ownerId);
+        List<Book> books = bookRepository.findByOwnerIdAndDeletedAtIsNull(ownerId);
 
         StringBuilder csv = new StringBuilder();
         csv.append(String.join(",", HEADER)).append("\r\n");
@@ -70,6 +73,12 @@ public class BookCsvService {
 
     @Transactional
     public BookImportResult importCsv(Long ownerId, MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            return new BookImportResult(0, 0, List.of("El archivo está vacío."));
+        }
+        if (file.getSize() > MAX_IMPORT_BYTES) {
+            return new BookImportResult(0, 0, List.of("El archivo supera los 5 MB."));
+        }
         String content = readAsUtf8(file);
         List<List<String>> rows = CsvUtil.parse(content);
 
@@ -99,6 +108,12 @@ public class BookCsvService {
         int skipped = 0;
         List<String> messages = new ArrayList<>();
 
+        int dataRows = rows.size() - 1;
+        if (dataRows > MAX_IMPORT_ROWS) {
+            return new BookImportResult(0, 0,
+                    List.of("El archivo tiene " + dataRows + " filas; el máximo es " + MAX_IMPORT_ROWS + ". Divide el archivo."));
+        }
+
         for (int r = 1; r < rows.size(); r++) {
             List<String> row = rows.get(r);
             int rowNumber = r + 1;
@@ -109,24 +124,35 @@ public class BookCsvService {
                 messages.add("Fila " + rowNumber + ": omitida, falta el título.");
                 continue;
             }
+            String trimmedTitle = title.trim();
+            if (trimmedTitle.length() > 255) {
+                skipped++;
+                messages.add("Fila " + rowNumber + ": omitida, el título supera los 255 caracteres.");
+                continue;
+            }
 
             Book book = Book.builder()
                     .owner(userService.getEntity(ownerId))
-                    .title(title.trim())
-                    .author(blankToNull(value(row, authorIdx)))
-                    .isbn(blankToNull(value(row, isbnIdx)))
-                    .synopsis(blankToNull(value(row, synopsisIdx)))
+                    .title(trimmedTitle)
+                    .author(truncate(blankToNull(value(row, authorIdx)), 255))
+                    .isbn(truncate(blankToNull(value(row, isbnIdx)), 20))
+                    .synopsis(truncate(blankToNull(value(row, synopsisIdx)), 5000))
                     .build();
 
-            book.setStatus(parseStatus(value(row, statusIdx)));
+            book.setStatus(parseStatus(value(row, statusIdx), rowNumber, messages));
             book.setPageCount(parseInt(value(row, pageCountIdx)));
-            book.setSeries(blankToNull(value(row, seriesIdx)));
+            book.setSeries(truncate(blankToNull(value(row, seriesIdx)), 255));
             book.setSeriesPosition(parseInt(value(row, seriesPositionIdx)));
-            book.setFormat(parseFormat(value(row, formatIdx)));
+            book.setFormat(parseFormat(value(row, formatIdx), rowNumber, messages));
 
-            LocalDate startedAt = parseDate(value(row, startedAtIdx));
-            LocalDate finishedAt = parseDate(value(row, finishedAtIdx));
-            if (startedAt != null && finishedAt != null && finishedAt.isBefore(startedAt)) {
+            String rawStarted = value(row, startedAtIdx);
+            String rawFinished = value(row, finishedAtIdx);
+            LocalDate startedAt = parseDate(rawStarted);
+            LocalDate finishedAt = parseDate(rawFinished);
+            if ((rawStarted != null && !rawStarted.isBlank() && startedAt == null)
+                    || (rawFinished != null && !rawFinished.isBlank() && finishedAt == null)) {
+                messages.add("Fila " + rowNumber + ": fecha no válida, se ha ignorado el rango de fechas.");
+            } else if (startedAt != null && finishedAt != null && finishedAt.isBefore(startedAt)) {
                 messages.add("Fila " + rowNumber + ": fecha de fin anterior a la de inicio, se ha ignorado el rango de fechas.");
             } else {
                 book.setStartedAt(startedAt);
@@ -155,24 +181,26 @@ public class BookCsvService {
         return categories;
     }
 
-    private BookStatus parseStatus(String raw) {
+    private BookStatus parseStatus(String raw, int rowNumber, List<String> messages) {
         if (raw == null || raw.isBlank()) {
             return BookStatus.WANT_TO_READ;
         }
         try {
             return BookStatus.valueOf(raw.trim().toUpperCase(Locale.ROOT).replace(' ', '_'));
         } catch (IllegalArgumentException ex) {
+            messages.add("Fila " + rowNumber + ": estado '" + raw.trim() + "' no válido, se usa WANT_TO_READ.");
             return BookStatus.WANT_TO_READ;
         }
     }
 
-    private BookFormat parseFormat(String raw) {
+    private BookFormat parseFormat(String raw, int rowNumber, List<String> messages) {
         if (raw == null || raw.isBlank()) {
             return null;
         }
         try {
             return BookFormat.valueOf(raw.trim().toUpperCase(Locale.ROOT).replace(' ', '_'));
         } catch (IllegalArgumentException ex) {
+            messages.add("Fila " + rowNumber + ": formato '" + raw.trim() + "' no válido, se ignora.");
             return null;
         }
     }
@@ -205,6 +233,13 @@ public class BookCsvService {
 
     private String blankToNull(String value) {
         return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    private String truncate(String value, int max) {
+        if (value != null && value.length() > max) {
+            return value.substring(0, max);
+        }
+        return value;
     }
 
     private String nullToEmpty(String value) {

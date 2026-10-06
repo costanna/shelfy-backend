@@ -40,6 +40,9 @@ public class UserService {
         if (request.remindersEnabled() != null) {
             user.setRemindersEnabled(request.remindersEnabled());
         }
+        if (request.reminderHour() != null) {
+            user.setReminderHour(request.reminderHour());
+        }
 
         return userMapper.toResponse(user);
     }

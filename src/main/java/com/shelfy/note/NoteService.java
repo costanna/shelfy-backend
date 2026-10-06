@@ -51,6 +51,10 @@ public class NoteService {
         Note note = noteRepository.findByIdAndBookId(noteId, bookId)
                 .orElseThrow(() -> new ResourceNotFoundException("Nota", noteId));
 
+        if (note.getUser() == null || !note.getUser().getId().equals(userId)) {
+            throw new ResourceNotFoundException("Nota", noteId);
+        }
+
         noteRepository.delete(note);
     }
 }

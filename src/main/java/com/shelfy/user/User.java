@@ -73,4 +73,9 @@ public class User {
     @ColumnDefault("true")
     @Builder.Default
     private boolean remindersEnabled = true;
+
+    @Column(name = "reminder_hour", nullable = false)
+    @ColumnDefault("9")
+    @Builder.Default
+    private int reminderHour = 9;
 }

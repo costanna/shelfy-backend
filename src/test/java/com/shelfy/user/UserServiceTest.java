@@ -64,7 +64,7 @@ class UserServiceTest {
         when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
 
         UserResponse response = service.updatePreferences(USER_ID,
-                new UpdatePreferencesRequest(ThemePreference.DARK, null, null));
+                new UpdatePreferencesRequest(ThemePreference.DARK, null, null, null));
 
         assertThat(response.themePreference()).isEqualTo(ThemePreference.DARK);
         // languagePreference no se tocó (va null en la request): se queda con el

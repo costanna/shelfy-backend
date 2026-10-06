@@ -28,7 +28,7 @@ public class FeedService {
     private final ReviewRepository reviewRepository;
 
     @Transactional(readOnly = true)
-    public List<FeedItemResponse> getFeed(Long userId, int limit) {
+    public List<FeedItemResponse> getFeed(Long userId, int limit, java.time.Instant before) {
         List<Long> followedIds = followRepository.findByFollowerIdOrderByCreatedAtDesc(userId).stream()
                 .map(follow -> follow.getFollowed().getId())
                 .toList();
@@ -37,22 +37,30 @@ public class FeedService {
             return List.of();
         }
 
-        Pageable fetchPage = PageRequest.of(0, Math.max(limit, 1));
+        // Agafa de més per compensar el filtre `before` aplicat en memòria
+        // (les dates reals de lectura no són la clau d'ordenació de la query).
+        Pageable fetchPage = PageRequest.of(0, Math.max(limit * 2 + 10, 1));
         List<FeedItemResponse> items = new ArrayList<>();
 
-        bookRepository.findByOwnerIdInAndStatusOrderByUpdatedAtDesc(followedIds, BookStatus.READING, fetchPage)
+        bookRepository.findFeedBooksByStatus(followedIds, BookStatus.READING, fetchPage)
                 .forEach(book -> items.add(toBookItem(book, FeedItemType.STARTED_READING)));
 
-        bookRepository.findByOwnerIdInAndStatusOrderByUpdatedAtDesc(followedIds, BookStatus.READ, fetchPage)
+        bookRepository.findFeedBooksByStatus(followedIds, BookStatus.READ, fetchPage)
                 .forEach(book -> items.add(toBookItem(book, FeedItemType.FINISHED_READING)));
 
         reviewRepository.findByUserIdInOrderByCreatedAtDesc(followedIds, fetchPage)
                 .forEach(review -> items.add(toReviewItem(review)));
 
         return items.stream()
+                .filter(item -> before == null || item.occurredAt().isBefore(before))
                 .sorted(Comparator.comparing(FeedItemResponse::occurredAt).reversed())
                 .limit(limit)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<FeedItemResponse> getFeed(Long userId, int limit) {
+        return getFeed(userId, limit, null);
     }
 
     private FeedItemResponse toBookItem(Book book, FeedItemType type) {
@@ -66,8 +74,21 @@ public class FeedService {
                 book.getTitle(),
                 book.getCoverUrl(),
                 null,
-                book.getUpdatedAt()
+                occurredAtFor(book, type)
         );
+    }
+
+    private java.time.Instant occurredAtFor(Book book, FeedItemType type) {
+        // updatedAt canvia amb qualsevol edició (corregir un títol ressuscitava
+        // el llibre al feed). Prefereix la data real de lectura quan existeix.
+        java.time.ZoneId zone = java.time.ZoneId.systemDefault();
+        if (type == FeedItemType.FINISHED_READING && book.getFinishedAt() != null) {
+            return book.getFinishedAt().atStartOfDay(zone).toInstant();
+        }
+        if (book.getStartedAt() != null) {
+            return book.getStartedAt().atStartOfDay(zone).toInstant();
+        }
+        return book.getUpdatedAt();
     }
 
     private FeedItemResponse toReviewItem(Review review) {

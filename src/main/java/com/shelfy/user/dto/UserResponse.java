@@ -13,6 +13,7 @@ public record UserResponse(
         ThemePreference themePreference,
         LanguagePreference languagePreference,
         Instant avatarUpdatedAt,
-        boolean remindersEnabled
+        boolean remindersEnabled,
+        int reminderHour
 ) {
 }

@@ -82,11 +82,32 @@ public class LoginRateLimitFilter extends OncePerRequestFilter {
     }
 
     private String clientIp(HttpServletRequest request) {
-        String forwardedFor = request.getHeader("X-Forwarded-For");
-        if (forwardedFor != null && !forwardedFor.isBlank()) {
-            return forwardedFor.split(",")[0].trim();
+        String remoteAddr = request.getRemoteAddr();
+        // Solo confiamos en X-Forwarded-For si la conexión viene del propio
+        // proxy/CDN (Render, localhost en dev). Si no, un atacante podría
+        // enviar un XFF falso y rotarlo para saltarse el límite.
+        if (isTrustedProxy(remoteAddr)) {
+            String forwardedFor = request.getHeader("X-Forwarded-For");
+            if (forwardedFor != null && !forwardedFor.isBlank()) {
+                return forwardedFor.split(",")[0].trim();
+            }
         }
-        return request.getRemoteAddr();
+        return remoteAddr;
+    }
+
+    private boolean isTrustedProxy(String remoteAddr) {
+        if (remoteAddr == null) {
+            return false;
+        }
+        return remoteAddr.equals("127.0.0.1")
+                || remoteAddr.equals("0:0:0:0:0:0:0:1")
+                || remoteAddr.equals("::1")
+                || remoteAddr.startsWith("10.")
+                || remoteAddr.startsWith("172.16.") || remoteAddr.startsWith("172.17.")
+                || remoteAddr.startsWith("172.18.") || remoteAddr.startsWith("172.19.")
+                || remoteAddr.startsWith("172.2") || remoteAddr.startsWith("172.30.")
+                || remoteAddr.startsWith("172.31.")
+                || remoteAddr.startsWith("192.168.");
     }
 
     private static final class Window {

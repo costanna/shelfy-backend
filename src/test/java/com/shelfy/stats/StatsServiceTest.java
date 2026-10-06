@@ -45,7 +45,7 @@ class StatsServiceTest {
 
     @Test
     void getStats_ofAnEmptyLibraryReturnsAllZeros() {
-        when(bookRepository.findByOwnerId(OWNER_ID)).thenReturn(List.of());
+        when(bookRepository.findByOwnerIdAndDeletedAtIsNull(OWNER_ID)).thenReturn(List.of());
 
         ReadingStatsResponse stats = service.getStats(OWNER_ID);
 
@@ -58,7 +58,7 @@ class StatsServiceTest {
 
     @Test
     void getStats_countsReadAndReadingBooksSeparatelyFromTheTotal() {
-        when(bookRepository.findByOwnerId(OWNER_ID)).thenReturn(List.of(
+        when(bookRepository.findByOwnerIdAndDeletedAtIsNull(OWNER_ID)).thenReturn(List.of(
                 book(1L, BookStatus.READ, LocalDate.of(2026, 1, 1), LocalDate.of(2026, 1, 10)),
                 book(2L, BookStatus.READING, LocalDate.of(2026, 2, 1), null),
                 book(3L, BookStatus.WANT_TO_READ, null, null)));
@@ -72,7 +72,7 @@ class StatsServiceTest {
 
     @Test
     void getStats_computesInclusiveDayCountForACompletedBook() {
-        when(bookRepository.findByOwnerId(OWNER_ID)).thenReturn(List.of(
+        when(bookRepository.findByOwnerIdAndDeletedAtIsNull(OWNER_ID)).thenReturn(List.of(
                 book(1L, BookStatus.READ, LocalDate.of(2026, 1, 1), LocalDate.of(2026, 1, 10))));
 
         List<BookReadingDuration> durations = service.getStats(OWNER_ID).readingDurations();
@@ -87,7 +87,7 @@ class StatsServiceTest {
     void getStats_ignoresAReadBookWithoutAFinishDate() {
         // Un libro "READ" sin finishedAt no debería poder pasar (la UI no lo permite),
         // pero si pasara, no debe aparecer como una lectura completada.
-        when(bookRepository.findByOwnerId(OWNER_ID)).thenReturn(List.of(
+        when(bookRepository.findByOwnerIdAndDeletedAtIsNull(OWNER_ID)).thenReturn(List.of(
                 book(1L, BookStatus.READ, LocalDate.of(2026, 1, 1), null)));
 
         ReadingStatsResponse stats = service.getStats(OWNER_ID);
@@ -98,7 +98,7 @@ class StatsServiceTest {
 
     @Test
     void getStats_includesPastRereadsFromReadEventsAsNotCurrent() {
-        when(bookRepository.findByOwnerId(OWNER_ID)).thenReturn(List.of());
+        when(bookRepository.findByOwnerIdAndDeletedAtIsNull(OWNER_ID)).thenReturn(List.of());
         Book book = book(1L, BookStatus.READ, null, null);
         ReadEvent event = ReadEvent.builder().book(book)
                 .startedAt(LocalDate.of(2025, 6, 1)).finishedAt(LocalDate.of(2025, 6, 15)).build();
@@ -113,7 +113,7 @@ class StatsServiceTest {
 
     @Test
     void getStats_sortsReadingDurationsByMostRecentlyFinishedFirst() {
-        when(bookRepository.findByOwnerId(OWNER_ID)).thenReturn(List.of(
+        when(bookRepository.findByOwnerIdAndDeletedAtIsNull(OWNER_ID)).thenReturn(List.of(
                 book(1L, BookStatus.READ, LocalDate.of(2026, 1, 1), LocalDate.of(2026, 1, 5)),
                 book(2L, BookStatus.READ, LocalDate.of(2026, 3, 1), LocalDate.of(2026, 3, 5))));
 
@@ -124,7 +124,7 @@ class StatsServiceTest {
 
     @Test
     void getStats_groupsCompletionsByMonthAndSortsMostRecentFirst() {
-        when(bookRepository.findByOwnerId(OWNER_ID)).thenReturn(List.of(
+        when(bookRepository.findByOwnerIdAndDeletedAtIsNull(OWNER_ID)).thenReturn(List.of(
                 book(1L, BookStatus.READ, LocalDate.of(2026, 1, 5), LocalDate.of(2026, 1, 10)),
                 book(2L, BookStatus.READ, LocalDate.of(2026, 1, 15), LocalDate.of(2026, 1, 20)),
                 book(3L, BookStatus.READ, LocalDate.of(2026, 3, 1), LocalDate.of(2026, 3, 5))));

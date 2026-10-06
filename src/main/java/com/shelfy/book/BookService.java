@@ -12,9 +12,11 @@ import com.shelfy.note.NoteRepository;
 import com.shelfy.review.ReviewRepository;
 import com.shelfy.user.UserService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,6 +29,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class BookService {
 
     private final BookRepository bookRepository;
@@ -37,12 +40,23 @@ public class BookService {
     private final CategoryService categoryService;
     private final UserService userService;
 
+    private static final java.util.Set<String> ALLOWED_SORT_FIELDS = java.util.Set.of(
+            "title", "author", "createdAt", "updatedAt", "pageCount",
+            "startedAt", "finishedAt", "status", "series", "seriesPosition",
+            "statusChangedAt", "deletedAt");
+
     @Transactional(readOnly = true)
     public PageResponse<BookResponse> search(Long ownerId, BookFilter filter, Pageable pageable) {
+        validateSort(pageable);
+        String query = filter.query() != null && filter.query().length() > 100
+                ? filter.query().substring(0, 100)
+                : filter.query();
+        BookFilter effectiveFilter = new BookFilter(filter.status(), filter.categoryId(), query);
         Specification<Book> spec = BookSpecifications.ownedBy(ownerId)
-                .and(BookSpecifications.hasStatus(filter.status()))
-                .and(BookSpecifications.hasCategory(filter.categoryId()))
-                .and(BookSpecifications.matchesText(filter.query()));
+                .and(BookSpecifications.notDeleted())
+                .and(BookSpecifications.hasStatus(effectiveFilter.status()))
+                .and(BookSpecifications.hasCategory(effectiveFilter.categoryId()))
+                .and(BookSpecifications.matchesText(effectiveFilter.query()));
 
         Page<Book> page = bookRepository.findAll(spec, pageable);
 
@@ -78,6 +92,7 @@ public class BookService {
     public BookResponse create(Long ownerId, BookRequest request) {
         Book book = Book.builder()
                 .owner(userService.getEntity(ownerId))
+                .statusChangedAt(java.time.Instant.now())
                 .build();
 
         applyRequest(book, request, ownerId);
@@ -108,15 +123,15 @@ public class BookService {
         book.setFinishedAt(request.finishedAt());
 
         if (request.finishedAt() != null) {
-            book.setStatus(BookStatus.READ);
+            touchStatus(book, BookStatus.READ);
         } else if (request.startedAt() != null) {
             if (previousStatus == BookStatus.WANT_TO_READ || previousStatus == BookStatus.WANT_TO_BUY
                     || previousStatus == BookStatus.READ) {
                 archivePreviousRead(book, previousStatus, previousStartedAt, previousFinishedAt);
-                book.setStatus(BookStatus.READING);
+                touchStatus(book, BookStatus.READING);
             }
         } else if (previousStatus == BookStatus.READ || previousStatus == BookStatus.READING) {
-            book.setStatus(BookStatus.WANT_TO_READ);
+            touchStatus(book, BookStatus.WANT_TO_READ);
             book.setCurrentPage(null);
         }
 
@@ -139,11 +154,14 @@ public class BookService {
         book.setCurrentPage(clampToPageCount(request.currentPage(), book.getPageCount()));
 
         if (book.getStatus() == BookStatus.WANT_TO_READ || book.getStatus() == BookStatus.WANT_TO_BUY) {
-            book.setStatus(BookStatus.READING);
+            touchStatus(book, BookStatus.READING);
         }
         if (book.getStatus() == BookStatus.READING && book.getStartedAt() == null) {
             book.setStartedAt(LocalDate.now());
         }
+        // Activitat recent: permet que el recordatori torni a avisar si
+        // el llibre torna a quedar estancat més endavant.
+        book.setReminderSentAt(null);
 
         return bookMapper.toResponse(book);
     }
@@ -158,7 +176,7 @@ public class BookService {
 
         archivePreviousRead(book, book.getStatus(), book.getStartedAt(), book.getFinishedAt());
 
-        book.setStatus(BookStatus.READING);
+        touchStatus(book, BookStatus.READING);
         book.setStartedAt(LocalDate.now());
         book.setFinishedAt(null);
         book.setReminderSentAt(null);
@@ -169,6 +187,56 @@ public class BookService {
     @Transactional
     public void delete(Long ownerId, Long id) {
         Book book = findOwned(ownerId, id);
+        book.setDeletedAt(java.time.Instant.now());
+    }
+
+    @Transactional(readOnly = true)
+    public PageResponse<BookResponse> trash(Long ownerId, Pageable pageable) {
+        return PageResponse.from(
+                bookRepository.findByOwnerIdAndDeletedAtIsNotNullOrderByDeletedAtDesc(ownerId, pageable),
+                bookMapper::toResponse);
+    }
+
+    @Transactional
+    public BookResponse restore(Long ownerId, Long id) {
+        Book book = bookRepository.findByIdAndOwnerId(id, ownerId)
+                .orElseThrow(() -> new ResourceNotFoundException("Libro", id));
+        if (book.getDeletedAt() == null) {
+            throw new IllegalArgumentException("El libro no está en la papelera");
+        }
+        book.setDeletedAt(null);
+        return bookMapper.toResponse(book);
+    }
+
+    @Transactional
+    public void purge(Long ownerId, Long id) {
+        Book book = bookRepository.findByIdAndOwnerId(id, ownerId)
+                .orElseThrow(() -> new ResourceNotFoundException("Libro", id));
+        if (book.getDeletedAt() == null) {
+            throw new IllegalArgumentException("Primero mueve el libro a la papelera");
+        }
+        hardDelete(book);
+    }
+
+    /**
+     * Purga automàtica: cada nit elimina definitivament els llibres que porten
+     * més de 30 dies a la paperera, amb les seves ressenyes, notes i historial.
+     */
+    @Scheduled(cron = "0 0 4 * * *")
+    @Transactional
+    public int purgeExpired() {
+        java.time.Instant cutoff = java.time.Instant.now().minus(java.time.Duration.ofDays(30));
+        java.util.List<Book> expired = bookRepository.findByDeletedAtBefore(cutoff);
+        for (Book book : expired) {
+            hardDelete(book);
+        }
+        if (!expired.isEmpty()) {
+            log.info("Papelera purgada: {} libros eliminados definitivamente", expired.size());
+        }
+        return expired.size();
+    }
+
+    private void hardDelete(Book book) {
         reviewRepository.deleteByBookId(book.getId());
         noteRepository.deleteByBookId(book.getId());
         readEventRepository.deleteByBookId(book.getId());
@@ -176,9 +244,31 @@ public class BookService {
     }
 
     @Transactional(readOnly = true)
+    public java.util.List<com.shelfy.book.dto.BookKeyResponse> keys(Long ownerId) {
+        return bookRepository.findKeysByOwnerId(ownerId).stream()
+                .map(row -> new com.shelfy.book.dto.BookKeyResponse(row.getId(), row.getTitle(), row.getAuthor()))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
     public Book findOwned(Long ownerId, Long id) {
-        return bookRepository.findByIdAndOwnerId(id, ownerId)
+        return bookRepository.findByIdAndOwnerIdAndDeletedAtIsNull(id, ownerId)
                 .orElseThrow(() -> new ResourceNotFoundException("Libro", id));
+    }
+
+    private void validateSort(Pageable pageable) {
+        for (org.springframework.data.domain.Sort.Order order : pageable.getSort()) {
+            if (!ALLOWED_SORT_FIELDS.contains(order.getProperty())) {
+                throw new IllegalArgumentException("Orden no permitido: " + order.getProperty());
+            }
+        }
+    }
+
+    private void touchStatus(Book book, BookStatus next) {
+        if (book.getStatus() != next) {
+            book.setStatus(next);
+            book.setStatusChangedAt(java.time.Instant.now());
+        }
     }
 
     private void applyRequest(Book book, BookRequest request, Long ownerId) {
@@ -201,11 +291,15 @@ public class BookService {
             archivePreviousRead(book, previousStatus, previousStartedAt, previousFinishedAt);
         }
 
-        book.setStatus(request.status());
+        touchStatus(book, request.status());
         book.setStartedAt(request.startedAt());
         book.setFinishedAt(request.finishedAt());
         book.setCategories(new LinkedHashSet<>(
                 categoryService.resolveOwned(ownerId, request.categoryIds())));
+
+        if (book.getStatus() == BookStatus.WANT_TO_READ || book.getStatus() == BookStatus.WANT_TO_BUY) {
+            book.setCurrentPage(null);
+        }
 
         if (book.getStatus() != BookStatus.READING) {
             book.setReminderSentAt(null);

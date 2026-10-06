@@ -11,6 +11,7 @@ import com.shelfy.user.dto.PublicBookResponse;
 import com.shelfy.user.dto.PublicReviewResponse;
 import com.shelfy.user.dto.UserProfileResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -52,8 +53,31 @@ public class UserProfileService {
         );
     }
 
+    @Transactional(readOnly = true)
+    public com.shelfy.common.dto.PageResponse<PublicBookResponse> getProfileBooks(
+            Long viewerId, Long targetUserId, Pageable pageable) {
+        User target = userRepository.findById(targetUserId)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario", targetUserId));
+
+        boolean own = viewerId.equals(targetUserId);
+        boolean followedByMe = own || followService.isFollowing(viewerId, targetUserId);
+        if (!own && !followedByMe) {
+            return new com.shelfy.common.dto.PageResponse<>(
+                    List.of(), pageable.getPageNumber(), pageable.getPageSize(), 0, 0, true);
+        }
+
+        Map<Long, List<PublicReviewResponse>> reviewsByBookId = reviewRepository.findByUserId(targetUserId).stream()
+                .collect(Collectors.groupingBy(
+                        review -> review.getBook().getId(),
+                        Collectors.mapping(this::toReviewResponse, Collectors.toList())));
+
+        return com.shelfy.common.dto.PageResponse.from(
+                bookRepository.findByOwnerIdAndDeletedAtIsNullOrderByCreatedAtDesc(targetUserId, pageable),
+                book -> toBookResponse(book, reviewsByBookId.getOrDefault(book.getId(), List.of())));
+    }
+
     private List<PublicBookResponse> books(Long userId) {
-        List<Book> books = bookRepository.findByOwnerId(userId);
+        List<Book> books = bookRepository.findByOwnerIdAndDeletedAtIsNull(userId);
 
         Map<Long, List<PublicReviewResponse>> reviewsByBookId = reviewRepository.findByUserId(userId).stream()
                 .collect(Collectors.groupingBy(
@@ -61,8 +85,11 @@ public class UserProfileService {
                         Collectors.mapping(this::toReviewResponse, Collectors.toList())
                 ));
 
+        // Límit defensiu: un perfil amb 10k llibres no ha de bolcar tota la
+        // biblioteca d'un cop. El frontend mostra els més recents.
         return books.stream()
                 .sorted(Comparator.comparing(Book::getCreatedAt).reversed())
+                .limit(100)
                 .map(book -> toBookResponse(book, reviewsByBookId.getOrDefault(book.getId(), List.of())))
                 .toList();
     }

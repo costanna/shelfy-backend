@@ -23,9 +23,10 @@ public class FeedController {
     @GetMapping
     public List<FeedItemResponse> get(
             @AuthenticationPrincipal UserPrincipal principal,
-            @RequestParam(required = false, defaultValue = "20") int limit
+            @RequestParam(required = false, defaultValue = "20") int limit,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) java.time.Instant before
     ) {
         int boundedLimit = Math.min(Math.max(limit, 1), MAX_LIMIT);
-        return feedService.getFeed(principal.getId(), boundedLimit);
+        return feedService.getFeed(principal.getId(), boundedLimit, before);
     }
 }

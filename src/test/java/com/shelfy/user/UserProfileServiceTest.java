@@ -65,7 +65,7 @@ class UserProfileServiceTest {
     @Test
     void getProfile_ofYourOwnProfileIsAlwaysVisibleWithoutCheckingFollowStatus() {
         when(userRepository.findById(VIEWER_ID)).thenReturn(Optional.of(User.builder().id(VIEWER_ID).build()));
-        when(bookRepository.findByOwnerId(VIEWER_ID)).thenReturn(List.of());
+        when(bookRepository.findByOwnerIdAndDeletedAtIsNull(VIEWER_ID)).thenReturn(List.of());
         when(reviewRepository.findByUserId(VIEWER_ID)).thenReturn(List.of());
 
         UserProfileResponse profile = service.getProfile(VIEWER_ID, VIEWER_ID);
@@ -94,7 +94,7 @@ class UserProfileServiceTest {
         when(followService.isFollowing(VIEWER_ID, TARGET_ID)).thenReturn(true);
         Book book = Book.builder().id(5L).title("Dune").status(BookStatus.READ)
                 .createdAt(Instant.now()).categories(java.util.Set.of()).build();
-        when(bookRepository.findByOwnerId(TARGET_ID)).thenReturn(List.of(book));
+        when(bookRepository.findByOwnerIdAndDeletedAtIsNull(TARGET_ID)).thenReturn(List.of(book));
         when(reviewRepository.findByUserId(TARGET_ID)).thenReturn(List.of());
 
         UserProfileResponse profile = service.getProfile(VIEWER_ID, TARGET_ID);
@@ -113,7 +113,7 @@ class UserProfileServiceTest {
                 .createdAt(Instant.now().minusSeconds(100)).categories(java.util.Set.of()).build();
         Book newer = Book.builder().id(2L).title("Nuevo").status(BookStatus.READ)
                 .createdAt(Instant.now()).categories(java.util.Set.of()).build();
-        when(bookRepository.findByOwnerId(TARGET_ID)).thenReturn(List.of(older, newer));
+        when(bookRepository.findByOwnerIdAndDeletedAtIsNull(TARGET_ID)).thenReturn(List.of(older, newer));
 
         Review review = Review.builder().id(9L).book(newer).rating(new BigDecimal("4.5")).text("Bien").build();
         when(reviewRepository.findByUserId(TARGET_ID)).thenReturn(List.of(review));

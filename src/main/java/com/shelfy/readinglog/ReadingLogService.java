@@ -12,6 +12,7 @@ import com.shelfy.readinglog.dto.ReadingStreakResponse;
 import com.shelfy.user.User;
 import com.shelfy.user.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,15 +39,20 @@ public class ReadingLogService {
             return;
         }
 
-        Book book = bookRepository.findByIdAndOwnerId(request.bookId(), ownerId)
+        Book book = bookRepository.findByIdAndOwnerIdAndDeletedAtIsNull(request.bookId(), ownerId)
                 .orElseThrow(() -> new ResourceNotFoundException("Libro", request.bookId()));
         User owner = userRepository.getReferenceById(ownerId);
 
-        readingLogRepository.save(ReadingLog.builder()
-                .owner(owner)
-                .book(book)
-                .date(request.date())
-                .build());
+        try {
+            readingLogRepository.saveAndFlush(ReadingLog.builder()
+                    .owner(owner)
+                    .book(book)
+                    .date(request.date())
+                    .build());
+        } catch (DataIntegrityViolationException ex) {
+            // Carrera: dues peticions simultànies han passat el check de dalt.
+            // La constraint única (owner,book,date) ho fa idempotent.
+        }
     }
 
     @Transactional

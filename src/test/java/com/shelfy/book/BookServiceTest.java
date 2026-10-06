@@ -111,7 +111,7 @@ class BookServiceTest {
 
     @Test
     void update_throwsWhenBookNotOwnedByCaller() {
-        when(bookRepository.findByIdAndOwnerId(BOOK_ID, OWNER_ID)).thenReturn(Optional.empty());
+        when(bookRepository.findByIdAndOwnerIdAndDeletedAtIsNull(BOOK_ID, OWNER_ID)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.update(OWNER_ID, BOOK_ID, requestWith(BookStatus.READ, null, null)))
                 .isInstanceOf(ResourceNotFoundException.class);
@@ -123,7 +123,7 @@ class BookServiceTest {
         book.setStatus(BookStatus.READ);
         book.setStartedAt(LocalDate.of(2026, 1, 1));
         book.setFinishedAt(LocalDate.of(2026, 1, 15));
-        when(bookRepository.findByIdAndOwnerId(BOOK_ID, OWNER_ID)).thenReturn(Optional.of(book));
+        when(bookRepository.findByIdAndOwnerIdAndDeletedAtIsNull(BOOK_ID, OWNER_ID)).thenReturn(Optional.of(book));
         when(categoryService.resolveOwned(anyLong(), any())).thenReturn(Set.of());
 
         service.update(OWNER_ID, BOOK_ID, requestWith(BookStatus.WANT_TO_READ, null, null));
@@ -142,7 +142,7 @@ class BookServiceTest {
         Book book = bookOwnedBy(owner());
         book.setStatus(BookStatus.WANT_TO_READ);
         book.setPageCount(300);
-        when(bookRepository.findByIdAndOwnerId(BOOK_ID, OWNER_ID)).thenReturn(Optional.of(book));
+        when(bookRepository.findByIdAndOwnerIdAndDeletedAtIsNull(BOOK_ID, OWNER_ID)).thenReturn(Optional.of(book));
 
         service.updateProgress(OWNER_ID, BOOK_ID, new UpdateProgressRequest(50));
 
@@ -156,7 +156,7 @@ class BookServiceTest {
         Book book = bookOwnedBy(owner());
         book.setStatus(BookStatus.READING);
         book.setPageCount(100);
-        when(bookRepository.findByIdAndOwnerId(BOOK_ID, OWNER_ID)).thenReturn(Optional.of(book));
+        when(bookRepository.findByIdAndOwnerIdAndDeletedAtIsNull(BOOK_ID, OWNER_ID)).thenReturn(Optional.of(book));
 
         service.updateProgress(OWNER_ID, BOOK_ID, new UpdateProgressRequest(500));
 
@@ -167,7 +167,7 @@ class BookServiceTest {
     void updateProgress_throwsWhenBookAlreadyFinished() {
         Book book = bookOwnedBy(owner());
         book.setStatus(BookStatus.READ);
-        when(bookRepository.findByIdAndOwnerId(BOOK_ID, OWNER_ID)).thenReturn(Optional.of(book));
+        when(bookRepository.findByIdAndOwnerIdAndDeletedAtIsNull(BOOK_ID, OWNER_ID)).thenReturn(Optional.of(book));
 
         assertThatThrownBy(() -> service.updateProgress(OWNER_ID, BOOK_ID, new UpdateProgressRequest(10)))
                 .isInstanceOf(IllegalArgumentException.class);
@@ -178,7 +178,7 @@ class BookServiceTest {
     @Test
     void updateReadingDates_throwsWhenFinishedBeforeStarted() {
         Book book = bookOwnedBy(owner());
-        when(bookRepository.findByIdAndOwnerId(BOOK_ID, OWNER_ID)).thenReturn(Optional.of(book));
+        when(bookRepository.findByIdAndOwnerIdAndDeletedAtIsNull(BOOK_ID, OWNER_ID)).thenReturn(Optional.of(book));
         UpdateReadingDatesRequest request =
                 new UpdateReadingDatesRequest(LocalDate.of(2026, 2, 1), LocalDate.of(2026, 1, 1));
 
@@ -191,7 +191,7 @@ class BookServiceTest {
         Book book = bookOwnedBy(owner());
         book.setStatus(BookStatus.READING);
         book.setStartedAt(LocalDate.of(2026, 1, 1));
-        when(bookRepository.findByIdAndOwnerId(BOOK_ID, OWNER_ID)).thenReturn(Optional.of(book));
+        when(bookRepository.findByIdAndOwnerIdAndDeletedAtIsNull(BOOK_ID, OWNER_ID)).thenReturn(Optional.of(book));
 
         service.updateReadingDates(OWNER_ID, BOOK_ID,
                 new UpdateReadingDatesRequest(LocalDate.of(2026, 1, 1), LocalDate.of(2026, 1, 20)));
@@ -206,7 +206,7 @@ class BookServiceTest {
         book.setStatus(BookStatus.READ);
         book.setStartedAt(LocalDate.of(2025, 1, 1));
         book.setFinishedAt(LocalDate.of(2025, 1, 15));
-        when(bookRepository.findByIdAndOwnerId(BOOK_ID, OWNER_ID)).thenReturn(Optional.of(book));
+        when(bookRepository.findByIdAndOwnerIdAndDeletedAtIsNull(BOOK_ID, OWNER_ID)).thenReturn(Optional.of(book));
 
         service.updateReadingDates(OWNER_ID, BOOK_ID,
                 new UpdateReadingDatesRequest(LocalDate.of(2026, 1, 1), null));
@@ -223,7 +223,7 @@ class BookServiceTest {
         book.setStartedAt(LocalDate.of(2025, 1, 1));
         book.setFinishedAt(LocalDate.of(2025, 1, 15));
         book.setCurrentPage(200);
-        when(bookRepository.findByIdAndOwnerId(BOOK_ID, OWNER_ID)).thenReturn(Optional.of(book));
+        when(bookRepository.findByIdAndOwnerIdAndDeletedAtIsNull(BOOK_ID, OWNER_ID)).thenReturn(Optional.of(book));
 
         service.updateReadingDates(OWNER_ID, BOOK_ID, new UpdateReadingDatesRequest(null, null));
 
@@ -237,7 +237,7 @@ class BookServiceTest {
     void reread_throwsWhenBookIsNotFinished() {
         Book book = bookOwnedBy(owner());
         book.setStatus(BookStatus.READING);
-        when(bookRepository.findByIdAndOwnerId(BOOK_ID, OWNER_ID)).thenReturn(Optional.of(book));
+        when(bookRepository.findByIdAndOwnerIdAndDeletedAtIsNull(BOOK_ID, OWNER_ID)).thenReturn(Optional.of(book));
 
         assertThatThrownBy(() -> service.reread(OWNER_ID, BOOK_ID))
                 .isInstanceOf(IllegalArgumentException.class);
@@ -250,7 +250,7 @@ class BookServiceTest {
         book.setStartedAt(LocalDate.of(2025, 1, 1));
         book.setFinishedAt(LocalDate.of(2025, 1, 15));
 
-        when(bookRepository.findByIdAndOwnerId(BOOK_ID, OWNER_ID)).thenReturn(Optional.of(book));
+        when(bookRepository.findByIdAndOwnerIdAndDeletedAtIsNull(BOOK_ID, OWNER_ID)).thenReturn(Optional.of(book));
 
         service.reread(OWNER_ID, BOOK_ID);
 
@@ -263,35 +263,70 @@ class BookServiceTest {
     // --- delete ---
 
     @Test
-    void delete_removesReviewsNotesReadEventsAndTheBookItself() {
+    void delete_movesBookToTrashInsteadOfHardDeleting() {
         Book book = bookOwnedBy(owner());
-        when(bookRepository.findByIdAndOwnerId(BOOK_ID, OWNER_ID)).thenReturn(Optional.of(book));
+        when(bookRepository.findByIdAndOwnerIdAndDeletedAtIsNull(BOOK_ID, OWNER_ID)).thenReturn(Optional.of(book));
 
         service.delete(OWNER_ID, BOOK_ID);
 
-        verify(reviewRepository).deleteByBookId(BOOK_ID);
-        verify(noteRepository).deleteByBookId(BOOK_ID);
-        verify(readEventRepository).deleteByBookId(BOOK_ID);
-        // BookRepository hereda delete(T) de CrudRepository y delete(Specification<T>) de
-        // JpaSpecificationExecutor: con el argumento tipado como Book a secas, el compilador
-        // no sabe elegir entre las dos sobrecargas. any(Book.class) lo desambigua.
-        verify(bookRepository).delete(any(Book.class));
+        assertThat(book.getDeletedAt()).isNotNull();
+        verify(reviewRepository, never()).deleteByBookId(BOOK_ID);
+        verify(bookRepository, never()).delete(any(Book.class));
     }
 
     @Test
     void delete_throwsWhenBookNotOwnedByCaller() {
-        when(bookRepository.findByIdAndOwnerId(BOOK_ID, OWNER_ID)).thenReturn(Optional.empty());
+        when(bookRepository.findByIdAndOwnerIdAndDeletedAtIsNull(BOOK_ID, OWNER_ID)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.delete(OWNER_ID, BOOK_ID))
                 .isInstanceOf(ResourceNotFoundException.class);
         verify(bookRepository, never()).delete(any(Book.class));
     }
 
+    @Test
+    void restore_clearsDeletedAtWhenBookIsInTrash() {
+        Book book = bookOwnedBy(owner());
+        book.setDeletedAt(java.time.Instant.now());
+        when(bookRepository.findByIdAndOwnerId(BOOK_ID, OWNER_ID)).thenReturn(Optional.of(book));
+
+        service.restore(OWNER_ID, BOOK_ID);
+
+        assertThat(book.getDeletedAt()).isNull();
+    }
+
+    @Test
+    void purge_hardDeletesOnlyBooksAlreadyInTrash() {
+        Book book = bookOwnedBy(owner());
+        book.setDeletedAt(java.time.Instant.now());
+        when(bookRepository.findByIdAndOwnerId(BOOK_ID, OWNER_ID)).thenReturn(Optional.of(book));
+
+        service.purge(OWNER_ID, BOOK_ID);
+
+        verify(reviewRepository).deleteByBookId(BOOK_ID);
+        verify(noteRepository).deleteByBookId(BOOK_ID);
+        verify(readEventRepository).deleteByBookId(BOOK_ID);
+        verify(bookRepository).delete(book);
+    }
+
+    @Test
+    void purgeExpired_hardDeletesOnlyBooksDeletedOverThirtyDaysAgo() {
+        Book oldTrash = bookOwnedBy(owner());
+        oldTrash.setDeletedAt(java.time.Instant.now().minus(java.time.Duration.ofDays(31)));
+        when(bookRepository.findByDeletedAtBefore(any(java.time.Instant.class)))
+                .thenReturn(List.of(oldTrash));
+
+        int purged = service.purgeExpired();
+
+        assertThat(purged).isEqualTo(1);
+        verify(reviewRepository).deleteByBookId(oldTrash.getId());
+        verify(bookRepository).delete(oldTrash);
+    }
+
     // --- findOwned ---
 
     @Test
     void findOwned_throwsWhenBookDoesNotExistForThatOwner() {
-        when(bookRepository.findByIdAndOwnerId(BOOK_ID, OWNER_ID)).thenReturn(Optional.empty());
+        when(bookRepository.findByIdAndOwnerIdAndDeletedAtIsNull(BOOK_ID, OWNER_ID)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.findOwned(OWNER_ID, BOOK_ID))
                 .isInstanceOf(ResourceNotFoundException.class);
@@ -329,7 +364,7 @@ class BookServiceTest {
     @Test
     void getById_returnsMappedResponseForOwnedBook() {
         Book book = bookOwnedBy(owner());
-        when(bookRepository.findByIdAndOwnerId(BOOK_ID, OWNER_ID)).thenReturn(Optional.of(book));
+        when(bookRepository.findByIdAndOwnerIdAndDeletedAtIsNull(BOOK_ID, OWNER_ID)).thenReturn(Optional.of(book));
 
         BookResponse response = service.getById(OWNER_ID, BOOK_ID);
 

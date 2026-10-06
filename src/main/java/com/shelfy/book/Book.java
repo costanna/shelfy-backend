@@ -18,7 +18,11 @@ import java.util.LinkedHashSet;
 import java.util.Set;
 
 @Entity
-@Table(name = "books", indexes = @Index(name = "idx_books_owner_id", columnList = "owner_id"))
+@Table(name = "books", indexes = {
+        @Index(name = "idx_books_owner_id", columnList = "owner_id"),
+        @Index(name = "idx_books_deleted_at", columnList = "deleted_at"),
+        @Index(name = "idx_books_status_changed_at", columnList = "status_changed_at")
+})
 @EntityListeners(AuditingEntityListener.class)
 @Getter
 @Setter
@@ -73,6 +77,12 @@ public class Book {
 
     @Column(name = "reminder_sent_at")
     private Instant reminderSentAt;
+
+    @Column(name = "status_changed_at")
+    private Instant statusChangedAt;
+
+    @Column(name = "deleted_at")
+    private Instant deletedAt;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "owner_id", nullable = false)
