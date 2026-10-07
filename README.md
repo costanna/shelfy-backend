@@ -156,10 +156,13 @@ El token se obtiene en `register` o `login` y caduca a las 24 h.
 verificar el email primero (enlace válido 24 h). El token de `forgot-password` caduca en 1 h y
 solo sirve una vez.
 
-Cada cuenta nueva se crea con 8 categorías por defecto (Ficción, No ficción, Fantasía, Ciencia
-ficción, Misterio y thriller, Romance, Biografía, Poesía) — `CategoryService.seedDefaults()`, para
+Cada cuenta nueva se crea con 16 categorías por defecto (Ficción, No ficción, Fantasía, Ciencia
+ficción, Misterio y thriller, Romance, Biografía, Poesía, Historia, Ciencia, Infantil, Juvenil,
+Teatro, Cómic y manga, Clásicos, Terror) — `CategoryService.seedDefaults()`, para
 no empezar con la sección de Categorías completamente vacía. Son categorías normales: se pueden
-renombrar o borrar como cualquier otra, no están protegidas.
+renombrar o borrar como cualquier otra, no están protegidas. El nombre de las de fábrica sigue el
+idioma de la app (`es`/`ca`/`en`/`fr`): al entrar con otro idioma, las que aún tengan el nombre
+original se traducen solas; las que hayas personalizado no se tocan nunca.
 
 **Usuario**
 
@@ -173,7 +176,7 @@ renombrar o borrar como cualquier otra, no están protegidas.
 | `GET` | `/api/users/{id}/avatar` | — | Imagen JPEG (público, sin autenticar), o `404` si ese usuario no tiene avatar |
 
 - `themePreference`: `LIGHT` · `DARK` · `SYSTEM`
-- `languagePreference`: `en` · `ca` · `es`
+- `languagePreference`: `en` · `ca` · `es` · `fr`
 - `alias`: 3-24 caracteres, solo letras/números/`_`, único entre cuentas (sin distinguir
   mayúsculas) y sin palabras malsonantes (ES/CA/EN). Opcional — `null` hasta que el usuario elige
   uno.
@@ -398,9 +401,9 @@ reaparezca en el feed como si acabara de cambiar de estado.
 | `POST` | `/api/categories/seed-defaults` | — | Categorías creadas (solo las que faltaban) |
 
 Nombres duplicados dentro del mismo usuario devuelven `409`. `POST .../seed-defaults` es la misma
-función que ya crea las 8 categorías por defecto al registrarse (ver más arriba), pero disponible
+función que ya crea las 16 categorías por defecto al registrarse (ver más arriba), pero disponible
 bajo demanda para una cuenta que ya existía antes de esa función o que las borró — es idempotente,
-solo añade las que falten por nombre.
+solo añade las que falten (reconoce las de fábrica en cualquiera de los 4 idiomas).
 
 **Objetivo de lectura anual**
 
@@ -691,10 +694,13 @@ The token is obtained from `register` or `login` and expires after 24 h.
 your email first (link valid for 24 h). The `forgot-password` token expires in 1 h and only works
 once.
 
-Every new account is created with 8 default categories (Fiction, Non-fiction, Fantasy, Science
-Fiction, Mystery & Thriller, Romance, Biography, Poetry) — `CategoryService.seedDefaults()`, so the
+Every new account is created with 16 default categories (Fiction, Non-fiction, Fantasy, Science
+Fiction, Mystery & Thriller, Romance, Biography, Poetry, History, Science, Children, Young adult,
+Theatre, Comics & manga, Classics, Horror) — `CategoryService.seedDefaults()`, so the
 Categories section doesn't start out completely empty. They're regular categories: they can be
-renamed or deleted like any other, they aren't protected.
+renamed or deleted like any other, they aren't protected. Factory names follow the app language
+(`es`/`ca`/`en`/`fr`): signing in with another language re-translates the ones that still have
+their original name; customized ones are never touched.
 
 **User**
 
@@ -708,7 +714,7 @@ renamed or deleted like any other, they aren't protected.
 | `GET` | `/api/users/{id}/avatar` | — | JPEG image (public, unauthenticated), or `404` if that user has no avatar |
 
 - `themePreference`: `LIGHT` · `DARK` · `SYSTEM`
-- `languagePreference`: `en` · `ca` · `es`
+- `languagePreference`: `en` · `ca` · `es` · `fr`
 - `alias`: 3–24 characters, letters/numbers/`_` only, unique across accounts (case-insensitive)
   and free of profanity (ES/CA/EN). Optional — `null` until the user picks one.
 - `avatarUpdatedAt`: `null` if there's no avatar; otherwise, the date it was uploaded/changed —
@@ -926,9 +932,9 @@ it had just changed status.
 | `POST` | `/api/categories/seed-defaults` | — | Categories created (only the missing ones) |
 
 Duplicate names within the same user return `409`. `POST .../seed-defaults` is the same function
-that already creates the 8 default categories at registration (see above), but available on
+that already creates the 16 default categories at registration (see above), but available on
 demand for an account that existed before that feature or that deleted them — it's idempotent,
-only adding the ones missing by name.
+only adding the missing ones (factory ones are recognized in any of the 4 languages).
 
 **Annual reading goal**
 

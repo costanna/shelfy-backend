@@ -6,7 +6,8 @@ import com.fasterxml.jackson.annotation.JsonValue;
 public enum LanguagePreference {
     EN,
     CA,
-    ES;
+    ES,
+    FR;
 
     @JsonValue
     public String code() {

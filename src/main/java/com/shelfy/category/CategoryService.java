@@ -17,9 +17,25 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class CategoryService {
 
-    private static final List<String> DEFAULT_CATEGORY_NAMES = List.of(
-            "Ficción", "No ficción", "Fantasía", "Ciencia ficción",
-            "Misterio y thriller", "Romance", "Biografía", "Poesía"
+    private static final List<DefaultCategory> DEFAULT_CATEGORIES = List.of(
+            new DefaultCategory("fiction", "Ficción", "Ficció", "Fiction", "Fiction"),
+            new DefaultCategory("non-fiction", "No ficción", "No-ficció", "Non-fiction", "Non-fiction"),
+            new DefaultCategory("fantasy", "Fantasía", "Fantasia", "Fantasy", "Fantasy"),
+            new DefaultCategory("sci-fi", "Ciencia ficción", "Ciència-ficció", "Science fiction", "Science-fiction"),
+            new DefaultCategory("mystery-thriller", "Misterio y thriller", "Misteri i thriller",
+                    "Mystery & thriller", "Mystère et thriller"),
+            new DefaultCategory("romance", "Romance", "Romance", "Romance", "Romance"),
+            new DefaultCategory("biography", "Biografía", "Biografia", "Biography", "Biographie"),
+            new DefaultCategory("poetry", "Poesía", "Poesia", "Poetry", "Poésie"),
+            new DefaultCategory("history", "Historia", "Història", "History", "Histoire"),
+            new DefaultCategory("science", "Ciencia", "Ciència", "Science", "Sciences"),
+            new DefaultCategory("children", "Infantil", "Infantil", "Children", "Jeunesse"),
+            new DefaultCategory("young-adult", "Juvenil", "Juvenil", "Young adult", "Young adult"),
+            new DefaultCategory("theatre", "Teatro", "Teatre", "Theatre", "Théâtre"),
+            new DefaultCategory("comics-manga", "Cómic y manga", "Còmic i manga",
+                    "Comics & manga", "BD et mangas"),
+            new DefaultCategory("classics", "Clásicos", "Clàssics", "Classics", "Classiques"),
+            new DefaultCategory("horror", "Terror", "Terror", "Horror", "Horreur")
     );
 
     private final CategoryRepository categoryRepository;
@@ -35,18 +51,32 @@ public class CategoryService {
 
     @Transactional
     public int seedMissingDefaults(User owner) {
-        List<String> existingNames = categoryRepository.findByOwnerIdOrderByNameAsc(owner.getId()).stream()
-                .map(category -> category.getName().toLowerCase())
-                .toList();
+        List<Category> existing = categoryRepository.findByOwnerIdOrderByNameAsc(owner.getId());
+        String targetLanguage = owner.getLanguagePreference() != null
+                ? owner.getLanguagePreference().name()
+                : "ES";
 
-        List<Category> missing = DEFAULT_CATEGORY_NAMES.stream()
-                .filter(name -> !existingNames.contains(name.toLowerCase()))
-                .map(name -> Category.builder().name(name).owner(owner).build())
+        List<Category> missing = DEFAULT_CATEGORIES.stream()
+                .filter(def -> existing.stream().noneMatch(cat -> def.matches(cat.getName())))
+                .map(def -> Category.builder().name(def.nameFor(targetLanguage)).owner(owner).build())
                 .toList();
 
         if (!missing.isEmpty()) {
             categoryRepository.saveAll(missing);
         }
+
+        // Les de fàbrica segueixen l'idioma: si el nom actual coincideix exactament
+        // amb una traducció coneguda però no amb la de l'idioma actual, es reanomena.
+        // Els noms personalitzats no es toquen mai.
+        for (Category cat : existing) {
+            for (DefaultCategory def : DEFAULT_CATEGORIES) {
+                if (def.matches(cat.getName()) && !cat.getName().equals(def.nameFor(targetLanguage))) {
+                    cat.setName(def.nameFor(targetLanguage));
+                    break;
+                }
+            }
+        }
+
         return missing.size();
     }
 
@@ -111,6 +141,27 @@ public class CategoryService {
     private void requireUniqueName(String name, Long ownerId) {
         if (categoryRepository.existsByNameIgnoreCaseAndOwnerId(name.trim(), ownerId)) {
             throw new DuplicateResourceException("Ya tienes una categoría con ese nombre");
+        }
+    }
+
+    /**
+     * Categoria de fàbrica: el nom depèn de l'idioma de l'app, però es
+     * reconeix per qualsevol de les seves traduccions per no duplicar.
+     */
+    private record DefaultCategory(String key, String es, String ca, String en, String fr) {
+
+        String nameFor(String language) {
+            return switch (language) {
+                case "CA" -> ca;
+                case "EN" -> en;
+                case "FR" -> fr;
+                default -> es;
+            };
+        }
+
+        boolean matches(String name) {
+            return es.equalsIgnoreCase(name) || ca.equalsIgnoreCase(name)
+                    || en.equalsIgnoreCase(name) || fr.equalsIgnoreCase(name);
         }
     }
 }

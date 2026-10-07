@@ -64,25 +64,54 @@ class CategoryServiceTest {
         verify(categoryRepository).saveAll(savedCategoriesCaptor.capture());
         List<String> addedNames = savedCategoriesCaptor.getValue().stream().map(Category::getName).toList();
 
-        assertThat(added).isEqualTo(6);
+        assertThat(added).isEqualTo(14);
         assertThat(addedNames)
-                .containsExactlyInAnyOrder("No ficción", "Fantasía", "Ciencia ficción",
-                        "Misterio y thriller", "Romance", "Biografía")
+                .contains("No ficción", "Fantasía", "Terror", "Historia")
                 .doesNotContain("Ficción", "Poesía");
     }
 
     @Test
-    void seedMissingDefaults_doesNothingWhenAllDefaultsAlreadyExist() {
-        List<Category> allDefaults = List.of(
+    void seedMissingDefaults_addsOnlyNewOnesWhenOldDefaultsAlreadyExist() {
+        List<Category> allOldDefaults = List.of(
                 category(1L, "Ficción"), category(2L, "No ficción"), category(3L, "Fantasía"),
                 category(4L, "Ciencia ficción"), category(5L, "Misterio y thriller"),
                 category(6L, "Romance"), category(7L, "Biografía"), category(8L, "Poesía"));
-        when(categoryRepository.findByOwnerIdOrderByNameAsc(OWNER_ID)).thenReturn(allDefaults);
+        when(categoryRepository.findByOwnerIdOrderByNameAsc(OWNER_ID)).thenReturn(allOldDefaults);
 
         int added = service.seedMissingDefaults(owner());
 
-        assertThat(added).isZero();
-        verify(categoryRepository, never()).saveAll(org.mockito.ArgumentMatchers.anyList());
+        assertThat(added).isEqualTo(8);
+        verify(categoryRepository).saveAll(savedCategoriesCaptor.capture());
+        assertThat(savedCategoriesCaptor.getValue().stream().map(Category::getName).toList())
+                .containsExactlyInAnyOrder("Historia", "Ciencia", "Infantil", "Juvenil",
+                        "Teatro", "Cómic y manga", "Clásicos", "Terror");
+    }
+
+    @Test
+    void seedMissingDefaults_seedsInFrenchWhenThatIsTheUserLanguage() {
+        User frenchOwner = User.builder().id(OWNER_ID).languagePreference(com.shelfy.user.LanguagePreference.FR).build();
+        when(categoryRepository.findByOwnerIdOrderByNameAsc(OWNER_ID)).thenReturn(List.of());
+
+        int added = service.seedMissingDefaults(frenchOwner);
+
+        assertThat(added).isEqualTo(16);
+        verify(categoryRepository).saveAll(savedCategoriesCaptor.capture());
+        assertThat(savedCategoriesCaptor.getValue().stream().map(Category::getName).toList())
+                .contains("Fiction", "Biographie", "Horreur", "Jeunesse");
+    }
+
+    @Test
+    void seedMissingDefaults_renamesFactoryCategoriesToTheCurrentLanguage() {
+        User catalanOwner = User.builder().id(OWNER_ID).languagePreference(com.shelfy.user.LanguagePreference.CA).build();
+        Category legacy = category(1L, "Fantasía");
+        Category custom = category(2L, "Mis pendientes");
+        when(categoryRepository.findByOwnerIdOrderByNameAsc(OWNER_ID))
+                .thenReturn(List.of(legacy, custom));
+
+        service.seedMissingDefaults(catalanOwner);
+
+        assertThat(legacy.getName()).isEqualTo("Fantasia");
+        assertThat(custom.getName()).isEqualTo("Mis pendientes");
     }
 
     @Test
