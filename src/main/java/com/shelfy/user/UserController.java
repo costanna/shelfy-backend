@@ -31,6 +31,7 @@ public class UserController {
     private final UserProfileService userProfileService;
     private final AvatarService avatarService;
     private final AccountService accountService;
+    private final com.shelfy.category.CategoryService categoryService;
 
     @GetMapping("/me")
     public UserResponse me(@AuthenticationPrincipal UserPrincipal principal) {
@@ -40,7 +41,13 @@ public class UserController {
     @PatchMapping("/me/preferences")
     public UserResponse updatePreferences(@AuthenticationPrincipal UserPrincipal principal,
                                           @Valid @RequestBody UpdatePreferencesRequest request) {
-        return userService.updatePreferences(principal.getId(), request);
+        UserResponse updated = userService.updatePreferences(principal.getId(), request);
+        if (request.languagePreference() != null) {
+            // Les categories de fàbrica segueixen l'idioma: en canviar-lo,
+            // es creen les que faltin i es tradueixen les originals de seguida.
+            categoryService.seedMissingDefaults(principal.getId());
+        }
+        return updated;
     }
 
     @PatchMapping("/me/alias")
