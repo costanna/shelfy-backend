@@ -1,17 +1,16 @@
 name: Keep backend awake
 
 # Render free duerme el servicio tras ~15 min sin tráfico (la siguiente petición
-# puede tardar casi un minuto en responder). Este workflow hace un ping cada 10
-# minutos a /actuator/health para que no llegue a dormirse. Gratis: el repo es
+# puede tardar casi un minuto en responder). Este workflow HACÍA un ping cada 10
+# minutos a /actuator/health para que no llegara a dormirse. Gratis: el repo es
 # público, así que los minutos de GitHub Actions no tienen límite.
+#
+# DESACTIVADO (2026-10-15): no se quiere nada despert 24h. Solo queda el
+# disparo manual (Actions → Keep backend awake → Run workflow) para despertar
+# bajo demanda. Para reactivarlo, descomenta el bloque `schedule`.
 on:
-  schedule:
-    # GitHub avisa de que los minutos "redondos" (:00, :10...) son los de
-    # más carga en su sistema y los que más se retrasan; con un offset se
-    # evita caer justo ahí. Aun así, esto es "best effort" por parte de
-    # GitHub, no un cron real garantizado — ver README para la alternativa
-    # más fiable (un pinger externo) si esto sigue sin dispararse solo.
-    - cron: "4,14,24,34,44,54 * * * *"
+  # schedule:
+  #   - cron: "4,14,24,34,44,54 * * * *"
   workflow_dispatch:
 
 jobs:
