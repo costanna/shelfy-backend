@@ -479,31 +479,24 @@ El plan Free de Render duerme el servicio tras ~15 min sin uso (la primera petic
 tardar cerca de un minuto); Neon hiberna la base de datos de forma parecida y se despierta sola en
 la siguiente conexión.
 
-**Evitar que se duerma**: Render free duerme el servicio tras ~15 min sin tráfico y
-despertarlo cuesta ~1 min (arrancar el contenedor + la JVM de Spring). Hay tres capas,
-de más a menos eficaz:
+**Dormir cuando nadie la usa (a propósito)**: los planes gratuitos tienen horas limitadas, así
+que tanto Render como Neon deben dormirse sin tráfico real. Un servicio despierto 24 h agota el
+cupo del mes (ya pasó con Neon: el compute estuvo encendido día y noche) y deja la app caída.
+Por eso:
 
-1. **Pinger externo cada 5 min (lo que más se nota, gratis)**: crea un monitor HTTP
-   gratuito en [UptimeRobot](https://uptimerobot.com) (plan free: intervalo mínimo de
-   5 min) apuntando a `https://shelfy-backend-prw2.onrender.com/actuator/health`.
-   Con un ping cada 5 min el servicio no llega a dormirse nunca. El ping a `/health`
-   además abre una conexión a la base de datos (el chequeo incluye a Neon), así que
-   mantiene despiertas las dos piezas que tardaban en arrancar. Este paso solo ya
-   elimina el problema en la práctica.
-2. **El workflow [`keep-alive.yml`](.github/workflows/keep-alive.yml)** (cada 10 min)
-   como red de seguridad. Aviso importante: el `schedule` de GitHub Actions es
-   *best-effort*, no un cron garantizado — puede tardar horas en empezar a dispararse
-   solo, o fallar algún ciclo. Si el "despertar" vuelve a tardar, comprueba si se está
-   ejecutando (`gh run list --workflow=keep-alive.yml` o la pestaña Actions).
-   Alternativa equivalente al pinger: [cron-job.org](https://cron-job.org) cada 10-14 min.
-3. **Arrencada más rápida cuando sí se duerme**: la imagen Docker lleva la JVM ajustada
-   para el plan free (`TieredStopAtLevel=1` + `UseSerialGC` + `urandom`), que recorta el
-   arranque en frío de forma notable frente a los valores por defecto.
-
-Si ni así basta (picos de ~1 min en frío), la única solución real es salir del free:
-el plan Starter de Render (~7 $/mes) no duerme el servicio, o un VPS *always-free*
-(como Oracle Cloud) que tampoco duerme — pero eso ya es infraestructura de pago
-(o con tarjeta) y mantenimiento propio.
+- **Nada de pingers**: ni UptimeRobot, ni cron-job.org, ni el `schedule` de
+  [`keep-alive.yml`](.github/workflows/keep-alive.yml) (solo queda el disparo manual).
+- **El health check no toca la base de datos** (`management.health.db.enabled=false`): Render
+  llama a `/actuator/health` cada pocos segundos mientras el servicio está despierto, y con el
+  chequeo de BD cada llamada era una consulta que impedía a Neon dormirse.
+- **Pool sin conexiones fijas**: `minimum-idle=0`, `idle-timeout=60s` y `keepalive-time=0` en
+  Hikari, para que las conexiones se cierren al minuto de no usarse y Neon pueda escalar a cero.
+- **Recordatorios de lectura apagados por defecto**: la tarea es horaria; se activan con
+  `REMINDERS_CRON` (p. ej. `0 0 * * * *`) sabiendo que despierta la BD una vez por hora mientras
+  el backend esté encendido.
+- **Arranque más rápido en frío**: la imagen Docker lleva la JVM ajustada para el plan free
+  (`TieredStopAtLevel=1` + `UseSerialGC` + `urandom`). La primera petición tras dormir sigue
+  tardando ~1 min; es el precio de no pagar.
 
 **Enviar emails de verdad (Resend):**
 
@@ -1010,26 +1003,23 @@ Render's Free plan puts the service to sleep after ~15 min of inactivity (the fi
 afterward can take close to a minute); Neon hibernates the database similarly and wakes up on its
 own on the next connection.
 
-**Keeping it from sleeping**: Render Free sleeps the service after ~15 min without traffic,
-and waking it costs ~1 min (container + Spring JVM). Three layers, most to least effective:
+**Sleeping when nobody uses it (on purpose)**: free plans have limited hours, so both Render
+and Neon must sleep without real traffic. A service awake 24/7 burns through the monthly quota
+(it already happened with Neon: the compute stayed on day and night) and takes the app down.
+So:
 
-1. **External pinger every 5 min (the one you'll actually notice, free)**: create a free
-   HTTP monitor at [UptimeRobot](https://uptimerobot.com) (free plan: 5-min minimum interval)
-   pointing at `https://shelfy-backend-prw2.onrender.com/actuator/health`. With a ping every
-   5 min the service never falls asleep. The `/health` ping also opens a database connection
-   (the check includes Neon), so it keeps awake both pieces that were slow to start. This step
-   alone removes the problem in practice.
-2. The [`keep-alive.yml`](.github/workflows/keep-alive.yml) workflow (every 10 min) as a
-   safety net. Important caveat: GitHub Actions' `schedule` trigger is *best-effort*, not a
-   guaranteed cron — it can take hours to start firing on its own, or skip a cycle. An
-   equivalent alternative to the pinger: [cron-job.org](https://cron-job.org) every 10-14 min.
-3. **Faster boot when it does sleep**: the Docker image tunes the JVM for the free tier
-   (`TieredStopAtLevel=1` + `UseSerialGC` + `urandom`), which cuts cold-start time
-   noticeably versus the defaults.
-
-If even that isn't enough (~1 min spikes on cold boot), the only real fix is leaving free:
-Render's Starter plan (~$7/mo) never sleeps, or an *always-free* VPS (like Oracle Cloud)
-that doesn't sleep either — but that's paid (or card-backed) infra with its own upkeep.
+- **No pingers**: no UptimeRobot, no cron-job.org, no `schedule` in
+  [`keep-alive.yml`](.github/workflows/keep-alive.yml) (only the manual trigger remains).
+- **The health check doesn't touch the database** (`management.health.db.enabled=false`): Render
+  calls `/actuator/health` every few seconds while the service is up, and with the DB check every
+  call was a query that kept Neon from sleeping.
+- **No pinned pool connections**: `minimum-idle=0`, `idle-timeout=60s` and `keepalive-time=0` in
+  Hikari, so connections close a minute after their last use and Neon can scale to zero.
+- **Reading reminders off by default**: the job is hourly; turn it on with `REMINDERS_CRON`
+  (e.g. `0 0 * * * *`), knowing it wakes the DB once an hour while the backend is up.
+- **Faster cold boot**: the Docker image tunes the JVM for the free tier
+  (`TieredStopAtLevel=1` + `UseSerialGC` + `urandom`). The first request after sleeping still
+  takes ~1 min; that's the price of not paying.
 
 **Sending real emails (Resend):**
 

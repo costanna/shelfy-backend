@@ -29,7 +29,7 @@ public class ReadingReminderService {
     private final EmailService emailService;
     private final PushService pushService;
 
-    @Scheduled(cron = "0 0 * * * *")
+    @Scheduled(cron = "${shelfy.reminders.cron:-}")
     @Transactional
     public void sendStaleReadingReminders() {
         int currentHour = java.time.ZonedDateTime.now(ZoneId.systemDefault()).getHour();
