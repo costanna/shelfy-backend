@@ -40,3 +40,5 @@ services:
         sync: false
       - key: VAPID_SUBJECT
         value: mailto:shelfy@example.com
+      - key: PURGE_CRON
+        value: "0 0 4 * * *"
