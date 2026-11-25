@@ -212,8 +212,8 @@ original se traducen solas; las que hayas personalizado no se tocan nunca.
 | `GET` | `/api/books/recommendations` | — | `{ basedOnAuthor, items: [{ title, author, coverUrl, readerCount }] }` |
 
 `DELETE /api/books/{id}` ya no borra de verdad: mueve el libro a la papelera
-(`deletedAt`). La papelera se purga sola cada noche (libros con más de 30 días,
-con sus reseñas, notas e historial). `GET /api/books/recommendations` sugiere
+(`deletedAt`). Si se define `PURGE_CRON`, la papelera se purga sola (libros con
+más de 30 días, con sus reseñas, notas e historial); por defecto está apagada. `GET /api/books/recommendations` sugiere
 libros que ha acabado la gente que sigues y que tú aún no tienes, ordenados por
 cuántos los han leído; `basedOnAuthor` es tu autor más leído, por si el frontend
 quiere completar con el catálogo abierto (Open Library) cuando el círculo social
@@ -494,6 +494,9 @@ Por eso:
 - **Recordatorios de lectura apagados por defecto**: la tarea es horaria; se activan con
   `REMINDERS_CRON` (p. ej. `0 0 * * * *`) sabiendo que despierta la BD una vez por hora mientras
   el backend esté encendido.
+- **Purga de la papelera apagada por defecto**: se activa con `PURGE_CRON` (p. ej.
+  `0 0 4 * * *`, cada noche a las 04:00 UTC). Solo se ejecuta si el backend está despierto a
+  esa hora, y entonces despierta la BD unos minutos.
 - **Arranque más rápido en frío**: la imagen Docker lleva la JVM ajustada para el plan free
   (`TieredStopAtLevel=1` + `UseSerialGC` + `urandom`). La primera petición tras dormir sigue
   tardando ~1 min; es el precio de no pagar.
@@ -740,8 +743,8 @@ their original name; customized ones are never touched.
 | `GET` | `/api/books/recommendations` | — | `{ basedOnAuthor, items: [{ title, author, coverUrl, readerCount }] }` |
 
 `DELETE /api/books/{id}` no longer deletes for real: it moves the book to the
-trash (`deletedAt`). The trash purges itself every night (books older than 30 days,
-with their reviews, notes and history). `GET /api/books/recommendations` suggests
+trash (`deletedAt`). If `PURGE_CRON` is set, the trash purges itself (books older
+than 30 days, with their reviews, notes and history); it is off by default. `GET /api/books/recommendations` suggests
 books finished by people you follow that you don't own yet, ranked by reader count;
 `basedOnAuthor` is your most-read author, in case the frontend wants to top up from
 the open catalog (Open Library) when your circle is quiet.
@@ -1017,6 +1020,9 @@ So:
   Hikari, so connections close a minute after their last use and Neon can scale to zero.
 - **Reading reminders off by default**: the job is hourly; turn it on with `REMINDERS_CRON`
   (e.g. `0 0 * * * *`), knowing it wakes the DB once an hour while the backend is up.
+- **Trash purge off by default**: turn it on with `PURGE_CRON` (e.g. `0 0 4 * * *`, every night
+  at 04:00 UTC). It only runs if the backend is awake at that time, and then wakes the DB for a
+  few minutes.
 - **Faster cold boot**: the Docker image tunes the JVM for the free tier
   (`TieredStopAtLevel=1` + `UseSerialGC` + `urandom`). The first request after sleeping still
   takes ~1 min; that's the price of not paying.

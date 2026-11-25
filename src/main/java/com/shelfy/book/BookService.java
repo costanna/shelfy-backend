@@ -219,10 +219,11 @@ public class BookService {
     }
 
     /**
-     * Purga automàtica: cada nit elimina definitivament els llibres que porten
-     * més de 30 dies a la paperera, amb les seves ressenyes, notes i historial.
+     * Purga automàtica: elimina definitivament els llibres que porten més de
+     * 30 dies a la paperera, amb les seves ressenyes, notes i historial.
+     * El cron ve de PURGE_CRON (p. ex. "0 0 4 * * *"); per defecte està apagada.
      */
-    @Scheduled(cron = "0 0 4 * * *")
+    @Scheduled(cron = "${shelfy.trash.purge-cron:-}")
     @Transactional
     public int purgeExpired() {
         java.time.Instant cutoff = java.time.Instant.now().minus(java.time.Duration.ofDays(30));
